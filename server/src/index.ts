@@ -9,6 +9,7 @@ import {
   setCurrentLesson,
 } from "./progress/ProgressStore";
 
+import { supabase } from "./lib/supabase";
 
 const app = express();
 
@@ -23,8 +24,36 @@ app.use(cors());
 app.use(express.json());
 
 // -----------------------------------------
-// AUTH ROUTES
+// AUTHENTICATED USER HELPER
 // -----------------------------------------
+
+async function getAuthenticatedUser(
+  req: express.Request
+) {
+  const authorization =
+    req.headers.authorization;
+
+  if (
+    !authorization ||
+    !authorization.startsWith("Bearer ")
+  ) {
+    return null;
+  }
+
+  const token =
+    authorization.substring(7);
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 // -----------------------------------------
 // HEALTH CHECK
@@ -61,7 +90,10 @@ app.post("/api/execute", async (req, res) => {
     }
 
     const result = await executeJava(code, {
-      stdin: typeof stdin === "string" ? stdin : "",
+      stdin:
+        typeof stdin === "string"
+          ? stdin
+          : "",
     });
 
     return res.json(result);
@@ -78,22 +110,24 @@ app.post("/api/execute", async (req, res) => {
 });
 
 // -----------------------------------------
-// GET STUDENT PROGRESS
+// GET CURRENT USER PROGRESS
 // -----------------------------------------
 
 app.get(
-  "/api/progress/:studentId",
+  "/api/progress",
   async (req, res) => {
     try {
-      const { studentId } = req.params;
+      const user =
+        await getAuthenticatedUser(req);
 
-      if (!studentId) {
-        return res.status(400).json({
-          error: "Student ID is required.",
+      if (!user) {
+        return res.status(401).json({
+          error: "Authentication required.",
         });
       }
 
-      const progress = await getProgress(studentId);
+      const progress =
+        await getProgress(user.id);
 
       return res.json(progress);
     } catch (error) {
@@ -115,43 +149,64 @@ app.post(
   "/api/progress/evaluation",
   async (req, res) => {
     try {
+      const user =
+        await getAuthenticatedUser(req);
+
+      if (!user) {
+        return res.status(401).json({
+          error: "Authentication required.",
+        });
+      }
+
       const {
-        studentId,
         lessonId,
         conceptIds,
         correct,
       } = req.body;
 
-      if (typeof studentId !== "string") {
+      if (
+        typeof lessonId !== "string"
+      ) {
         return res.status(400).json({
-          error: "studentId must be a string.",
-        });
-      }
-
-      if (typeof lessonId !== "string") {
-        return res.status(400).json({
-          error: "lessonId must be a string.",
+          error:
+            "lessonId must be a string.",
         });
       }
 
       if (!Array.isArray(conceptIds)) {
         return res.status(400).json({
-          error: "conceptIds must be an array.",
+          error:
+            "conceptIds must be an array.",
         });
       }
 
-      if (typeof correct !== "boolean") {
+      if (
+        !conceptIds.every(
+          (id) => typeof id === "string"
+        )
+      ) {
         return res.status(400).json({
-          error: "correct must be a boolean.",
+          error:
+            "conceptIds must contain only strings.",
         });
       }
 
-      const progress = await recordEvaluation(
-        studentId,
-        lessonId,
-        conceptIds,
-        correct
-      );
+      if (
+        typeof correct !== "boolean"
+      ) {
+        return res.status(400).json({
+          error:
+            "correct must be a boolean.",
+        });
+      }
+
+      const progress =
+        await recordEvaluation(
+          user.id,
+          lessonId,
+          conceptIds,
+          correct
+        );
 
       return res.json(progress);
     } catch (error) {
@@ -173,27 +228,32 @@ app.post(
   "/api/progress/current-lesson",
   async (req, res) => {
     try {
-      const {
-        studentId,
-        lessonId,
-      } = req.body;
+      const user =
+        await getAuthenticatedUser(req);
 
-      if (typeof studentId !== "string") {
-        return res.status(400).json({
-          error: "studentId must be a string.",
+      if (!user) {
+        return res.status(401).json({
+          error: "Authentication required.",
         });
       }
 
-      if (typeof lessonId !== "string") {
+      const { lessonId } =
+        req.body;
+
+      if (
+        typeof lessonId !== "string"
+      ) {
         return res.status(400).json({
-          error: "lessonId must be a string.",
+          error:
+            "lessonId must be a string.",
         });
       }
 
-      const progress = await setCurrentLesson(
-        studentId,
-        lessonId
-      );
+      const progress =
+        await setCurrentLesson(
+          user.id,
+          lessonId
+        );
 
       return res.json(progress);
     } catch (error) {

@@ -1,27 +1,44 @@
 import type { Progress } from "../../../src/core/progress/Progress";
 
-const progressStore = new Map<string, Progress>();
+import {
+  getProgress as getStoredProgress,
+  saveProgress as saveStoredProgress,
+  recordEvaluation as recordStoredEvaluation,
+  setCurrentLesson as setStoredCurrentLesson,
+} from "./ProgressStore";
 
-export function getProgress(studentId: string): Progress {
-  const existing = progressStore.get(studentId);
-
-  if (existing) {
-    return existing;
-  }
-
-  const progress: Progress = {
-    studentId,
-    completedLessonIds: [],
-    conceptProgress: [],
-  };
-
-  progressStore.set(studentId, progress);
-
-  return progress;
+export async function getProgress(
+  studentId: string
+): Promise<Progress> {
+  return getStoredProgress(studentId);
 }
 
-export function saveProgress(progress: Progress): Progress {
-  progressStore.set(progress.studentId, progress);
+export async function saveProgress(
+  progress: Progress
+): Promise<Progress> {
+  return saveStoredProgress(progress);
+}
 
-  return progress;
+export async function recordEvaluation(
+  studentId: string,
+  lessonId: string,
+  conceptIds: string[],
+  correct: boolean
+): Promise<Progress> {
+  return recordStoredEvaluation(
+    studentId,
+    lessonId,
+    conceptIds,
+    correct
+  );
+}
+
+export async function setCurrentLesson(
+  studentId: string,
+  lessonId: string
+): Promise<Progress> {
+  return setStoredCurrentLesson(
+    studentId,
+    lessonId
+  );
 }

@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { supabase } from "../lib/supabase";
 
 export type MasteryLevel =
   | "not_started"
@@ -23,63 +22,42 @@ export interface StudentProgress {
   currentLessonId?: string;
 }
 
-const DATA_DIRECTORY = path.join(
-  process.cwd(),
-  "data"
-);
-
-const DATA_FILE = path.join(
-  DATA_DIRECTORY,
-  "progress.json"
-);
-
-async function ensureDataFile(): Promise<void> {
-  await fs.mkdir(DATA_DIRECTORY, {
-    recursive: true,
-  });
-
-  try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await fs.writeFile(
-      DATA_FILE,
-      "{}",
-      "utf8"
-    );
-  }
+interface ProgressRow {
+  user_id: string;
+  completed_lesson_ids: string[];
+  concept_progress: ConceptProgress[];
+  current_lesson_id: string | null;
+  updated_at: string;
 }
 
-async function readAllProgress(): Promise<
-  Record<string, StudentProgress>
-> {
-  await ensureDataFile();
-
-  const contents = await fs.readFile(
-    DATA_FILE,
-    "utf8"
-  );
-
-  if (!contents.trim()) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(contents);
-  } catch {
-    return {};
-  }
+function rowToProgress(
+  row: ProgressRow
+): StudentProgress {
+  return {
+    studentId: row.user_id,
+    completedLessonIds:
+      row.completed_lesson_ids ?? [],
+    conceptProgress:
+      row.concept_progress ?? [],
+    currentLessonId:
+      row.current_lesson_id ?? undefined,
+  };
 }
 
-async function writeAllProgress(
-  progress: Record<string, StudentProgress>
-): Promise<void> {
-  await ensureDataFile();
-
-  await fs.writeFile(
-    DATA_FILE,
-    JSON.stringify(progress, null, 2),
-    "utf8"
-  );
+function progressToRow(
+  progress: StudentProgress
+): ProgressRow {
+  return {
+    user_id: progress.studentId,
+    completed_lesson_ids:
+      progress.completedLessonIds,
+    concept_progress:
+      progress.conceptProgress,
+    current_lesson_id:
+      progress.currentLessonId ?? null,
+    updated_at:
+      new Date().toISOString(),
+  };
 }
 
 function createEmptyProgress(
@@ -95,35 +73,54 @@ function createEmptyProgress(
 export async function getProgress(
   studentId: string
 ): Promise<StudentProgress> {
-  const allProgress =
-    await readAllProgress();
+  const { data, error } =
+    await supabase
+      .from("progress")
+      .select("*")
+      .eq("user_id", studentId)
+      .maybeSingle();
 
-  if (!allProgress[studentId]) {
-    const progress =
-      createEmptyProgress(studentId);
-
-    allProgress[studentId] = progress;
-
-    await writeAllProgress(allProgress);
-
-    return progress;
+  if (error) {
+    throw new Error(
+      `Unable to load progress: ${error.message}`
+    );
   }
 
-  return allProgress[studentId];
+  if (!data) {
+    return createEmptyProgress(
+      studentId
+    );
+  }
+
+  return rowToProgress(
+    data as ProgressRow
+  );
 }
 
 export async function saveProgress(
   progress: StudentProgress
 ): Promise<StudentProgress> {
-  const allProgress =
-    await readAllProgress();
+  const row =
+    progressToRow(progress);
 
-  allProgress[progress.studentId] =
-    progress;
+  const { data, error } =
+    await supabase
+      .from("progress")
+      .upsert(row, {
+        onConflict: "user_id",
+      })
+      .select()
+      .single();
 
-  await writeAllProgress(allProgress);
+  if (error) {
+    throw new Error(
+      `Unable to save progress: ${error.message}`
+    );
+  }
 
-  return progress;
+  return rowToProgress(
+    data as ProgressRow
+  );
 }
 
 export async function recordEvaluation(
@@ -169,10 +166,11 @@ export async function recordEvaluation(
         conceptId,
         attempts,
         successfulAttempts,
-        mastery: calculateMastery(
-          attempts,
-          successfulAttempts
-        ),
+        mastery:
+          calculateMastery(
+            attempts,
+            successfulAttempts
+          ),
         lastAttemptAt: now,
       });
     }
@@ -190,7 +188,8 @@ export async function recordEvaluation(
     }
   }
 
-  progress.currentLessonId = lessonId;
+  progress.currentLessonId =
+    lessonId;
 
   return saveProgress(progress);
 }
@@ -234,7 +233,8 @@ export async function setCurrentLesson(
   const progress =
     await getProgress(studentId);
 
-  progress.currentLessonId = lessonId;
+  progress.currentLessonId =
+    lessonId;
 
   return saveProgress(progress);
 }
