@@ -102,6 +102,7 @@
   max-width: 1160px;
   margin: 0 auto;
   padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--rule);
 }
 
 .landing__brand {
@@ -112,22 +113,46 @@
   text-decoration: none;
 }
 
+/* ---------------------------------------------------------
+   HERO — split into copy and a static product mockup.
+   --------------------------------------------------------- */
+
 .landing__hero {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  align-items: center;
+  gap: var(--space-8);
+
   max-width: 1160px;
   margin: 0 auto;
   padding: var(--space-9) var(--space-6);
 }
 
-.landing__eyebrow {
+.eyebrow {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-5);
+  padding: var(--space-2) var(--space-4);
+
+  background: var(--surface-1);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-secondary);
+}
+
+.eyebrow svg {
+  color: var(--accent);
 }
 
 .landing__headline {
   font-family: var(--font-display);
-  font-size: clamp(var(--text-2xl), 6vw, var(--text-4xl));
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-4xl));
   line-height: 1.08;
   letter-spacing: -0.015em;
   color: var(--ink);
@@ -149,32 +174,282 @@
   gap: var(--space-3);
 }
 
-/* The product loop, rendered as the sequence it actually is. */
+/* The trust line under the primary actions: an overlapping
+   avatar stack plus a single line of social proof. */
 
-.loop {
+.trust {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.trust__stack {
+  display: flex;
+}
+
+.trust__avatar {
+  border: 2px solid var(--canvas);
+}
+
+.trust__avatar + .trust__avatar {
+  margin-left: -10px;
+}
+
+.trust__text {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+/* ---------------------------------------------------------
+   MOCKUPS — the static "browser chrome" panels used in the
+   hero (mid-build) and the feature-demo section (published).
+   Purely decorative, so every color comes from the surface's
+   own tokens rather than anything platform-specific.
+   --------------------------------------------------------- */
+
+.mockup {
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.mockup__chrome {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
 
-  margin-top: var(--space-8);
-  padding-top: var(--space-6);
+  height: 38px;
+  padding: 0 var(--space-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.mockup__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--rule-strong);
+  flex-shrink: 0;
+}
+
+.mockup__chrome-title {
+  margin: 0 auto;
+}
+
+.mockup__url {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 auto;
+
+  padding: 4px var(--space-3);
+  background: var(--surface-inset);
+  border-radius: var(--radius-full);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-secondary);
+}
+
+.mockup__body {
+  display: flex;
+  min-height: 220px;
+}
+
+.mockup__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+
+  width: 130px;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-right: 1px solid var(--rule);
+}
+
+.mockup__rail-item {
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.mockup__rail-item--active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
+
+.mockup__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.mockup__pane-label {
+  margin-top: var(--space-3);
+}
+
+.mockup__pane-label:first-child {
+  margin-top: 0;
+}
+
+.mockup__pane-line {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+}
+
+.mockup__cursor {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: mockup-blink 1s steps(2, start) infinite;
+}
+
+@keyframes mockup-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.mockup__chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.mockup__bubble {
+  max-width: 78%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.mockup__bubble--user {
+  align-self: flex-end;
+  background: var(--accent-bg);
+  color: var(--ink);
+  border-bottom-right-radius: var(--radius-xs);
+}
+
+.mockup__bubble--agent {
+  align-self: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-secondary);
+  border-bottom-left-radius: var(--radius-xs);
+}
+
+/* ---------------------------------------------------------
+   WORKFLOW — the product loop as a step indicator, modeled
+   on the numbered circle badge used for lessons.
+   --------------------------------------------------------- */
+
+.workflow {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-7);
   border-top: 1px solid var(--rule);
 }
 
-.loop__step {
+.workflow__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+}
+
+.workflow__item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 84px;
+}
+
+.workflow__node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.workflow__index {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--rule-strong);
+
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.workflow__label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   color: var(--ink-muted);
+
+  transition: color var(--dur-base) var(--ease-out);
 }
 
-.loop__step--strong {
+.workflow__node--active .workflow__index {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.workflow__node--active .workflow__label {
   color: var(--accent);
 }
 
-.loop__arrow {
-  color: var(--rule-strong);
+.workflow__node:hover .workflow__index {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.workflow__node:hover .workflow__label {
+  color: var(--ink);
+}
+
+.workflow__line {
+  flex: 1;
+  min-width: 16px;
+  height: 1px;
+  margin: 0 var(--space-1);
+  background: var(--rule-strong);
 }
 
 .landing__section {
@@ -198,10 +473,35 @@
   margin-bottom: var(--space-6);
 }
 
+/* ---------------------------------------------------------
+   PILLARS
+   --------------------------------------------------------- */
+
 .pillars {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: var(--space-4);
+}
+
+.pillar-card {
+  position: relative;
+
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.pillar-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-rule);
+}
+
+.pillar-card__index {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-5);
 }
 
 .pillar__icon {
@@ -229,20 +529,293 @@
   color: var(--ink-secondary);
 }
 
-.landing__foot {
+.pillar-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 16px;
+  margin-top: var(--space-5);
+}
+
+.pillar-mark__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--rule-strong);
+}
+
+.pillar-mark__dot--fill {
+  background: var(--accent);
+}
+
+.pillar-mark__dot--live {
+  background: var(--correct);
+  animation: pillar-pulse 2.2s var(--ease-out) infinite;
+}
+
+@keyframes pillar-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--correct-rule);
+  }
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.pillar-mark__line {
+  height: 3px;
+  border-radius: var(--radius-full);
+}
+
+.pillar-mark__line--old {
+  width: 20px;
+  background: var(--rule-strong);
+}
+
+.pillar-mark__line--new {
+  width: 34px;
+  background: var(--accent);
+}
+
+.pillar-mark--build {
+  color: var(--accent);
+}
+
+.pillar-mark__url {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-secondary);
+}
+
+/* ---------------------------------------------------------
+   CURRICULUM
+   --------------------------------------------------------- */
+
+.curriculum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.curriculum-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+
+  color: inherit;
+  text-decoration: none;
+
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.curriculum-card:hover {
+  border-color: var(--rule-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.curriculum-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.curriculum-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.curriculum-card__arrow {
+  color: var(--ink-muted);
+  opacity: 0;
+  transform: translate(-2px, 2px);
+
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.curriculum-card:hover .curriculum-card__arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+  color: var(--accent);
+}
+
+.curriculum-card__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.curriculum-card__text {
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+/* ---------------------------------------------------------
+   TESTIMONIALS
+   --------------------------------------------------------- */
+
+.testimonials {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.testimonial-card__mark {
+  color: var(--accent-rule);
+  margin-bottom: var(--space-3);
+}
+
+.testimonial-card__quote {
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  margin-bottom: var(--space-5);
+}
+
+.testimonial-card__person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.testimonial-card__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.testimonial-card__role {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------------
+   FINAL CTA BANNER
+   --------------------------------------------------------- */
+
+.cta-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+
+  padding: var(--space-9) var(--space-6);
+  background: var(--accent);
+}
+
+.cta-banner__title {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
+  line-height: var(--leading-tight);
+  color: var(--on-accent);
+  max-width: 22ch;
+}
+
+.cta-banner__text {
+  font-size: var(--text-base);
+  color: var(--on-accent);
+  opacity: 0.82;
+  max-width: var(--measure-narrow);
+}
+
+.cta-banner__button {
+  box-shadow: var(--shadow-lg);
+}
+
+/* ---------------------------------------------------------
+   FOOTER
+   --------------------------------------------------------- */
+
+.landing-footer {
   max-width: 1160px;
   margin: 0 auto;
-  padding: var(--space-6);
-  border-top: 1px solid var(--rule);
+  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+.landing-footer__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--space-6);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--rule);
+}
+
+.landing-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.landing-footer__tagline {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  max-width: 32ch;
+}
+
+.landing-footer__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.landing-footer__col a {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.landing-footer__col a:hover {
+  color: var(--accent);
+}
+
+.landing-footer__heading {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-muted);
+  margin-bottom: var(--space-1);
+}
+
+.landing-footer__bottom {
+  padding-top: var(--space-6);
   font-size: var(--text-sm);
   color: var(--ink-muted);
+}
+
+@media (max-width: 960px) {
+  .landing__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero__visual {
+    max-width: 480px;
+  }
 }
 
 @media (max-width: 860px) {
   .landing__nav,
   .landing__hero,
+  .workflow,
   .landing__section,
-  .landing__foot {
+  .landing-footer {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
   }
@@ -250,6 +823,28 @@
   .landing__hero {
     padding-top: var(--space-7);
     padding-bottom: var(--space-7);
+  }
+
+  .landing-footer__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .mockup__body {
+    flex-direction: column;
+  }
+
+  .mockup__rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .mockup__bubble {
+    max-width: 92%;
   }
 }
 
