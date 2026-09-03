@@ -1,86 +1,129 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { LogOut } from "lucide-react";
 
-function Profile() {
+import { useAuth } from "../auth/useAuth";
+import { getUserStats } from "../lib/progress";
+import type { UserStats } from "../lib/progress";
+import { Avatar, Button, Card, Skeleton } from "../components/ui";
+
+export default function Profile() {
+  const { user, logout } = useAuth();
+
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    getUserStats()
+      .then((value) => {
+        if (active) {
+          setStats(value);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(
+            err instanceof Error ? err.message : "Couldn't load your stats."
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const displayName = user?.username || user?.email || "Learner";
+
+  /* XP per level is fixed at 500 in the progress layer. */
+  const levelFloor = ((stats?.level ?? 1) - 1) * 500;
+  const intoLevel = (stats?.xp ?? 0) - levelFloor;
+
   return (
-    <div className="profile-page">
-      <header className="dashboard-header">
-        <Link to="/" className="logo">
-          NeuroCode
-        </Link>
-
-        <nav>
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/courses">Courses</Link>
-        </nav>
+    <div className="page">
+      <header className="page__header">
+        <h1 className="page__title">Your profile</h1>
       </header>
 
-      <main className="profile-content">
-        <section className="profile-intro">
-          <p className="eyebrow">YOUR PROFILE</p>
+      <div className="stack gap-5" style={{ maxWidth: "var(--measure-wide)" }}>
+        <Card>
+          <div className="row gap-4">
+            <Avatar name={displayName} size="lg" />
 
-          <h1>Your learning journey.</h1>
-
-          <p>
-            Track your progress, practice history, and skills as you learn.
-          </p>
-        </section>
-
-        <section className="profile-card">
-          <div className="avatar">R</div>
-
-          <div>
-            <h2>Student</h2>
-            <p>NeuroCode learner</p>
-          </div>
-        </section>
-
-        <section className="stats-grid">
-          <div>
-            <span>Lessons completed</span>
-            <strong>0</strong>
-          </div>
-
-          <div>
-            <span>Challenges solved</span>
-            <strong>0</strong>
-          </div>
-
-          <div>
-            <span>Learning streak</span>
-            <strong>0 days</strong>
-          </div>
-        </section>
-
-        <section className="skills-section">
-          <p className="eyebrow">SKILLS</p>
-
-          <h2>What you're learning</h2>
-
-          <div className="skill">
-            <div>
-              <span>Java Fundamentals</span>
-              <span>0%</span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: "var(--text-lg)",
+                  fontWeight: "var(--weight-medium)",
+                  color: "var(--ink)",
+                }}
+              >
+                {displayName}
+              </div>
+              <div className="meta">{user?.email}</div>
             </div>
 
-            <div className="skill-bar">
-              <div></div>
-            </div>
+            <Button
+              variant="secondary"
+              icon={<LogOut size={15} />}
+              onClick={() => {
+                void logout();
+              }}
+            >
+              Sign out
+            </Button>
           </div>
+        </Card>
 
-          <div className="skill">
-            <div>
-              <span>Problem Solving</span>
-              <span>0%</span>
-            </div>
+        {error ? (
+          <Card>
+            <p className="prose">{error}</p>
+          </Card>
+        ) : null}
 
-            <div className="skill-bar">
-              <div></div>
-            </div>
-          </div>
-        </section>
-      </main>
+        <div className="stat-grid">
+          {isLoading ? (
+            <>
+              <Skeleton height="76px" />
+              <Skeleton height="76px" />
+              <Skeleton height="76px" />
+              <Skeleton height="76px" />
+            </>
+          ) : (
+            <>
+              <div className="stat">
+                <div className="stat__value">{stats?.level ?? 1}</div>
+                <div className="stat__label">
+                  Level · {intoLevel} / 500 xp to next
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat__value">
+                  {(stats?.xp ?? 0).toLocaleString()}
+                </div>
+                <div className="stat__label">Total XP</div>
+              </div>
+              <div className="stat">
+                <div className="stat__value">
+                  {stats?.total_lessons_completed ?? 0}
+                </div>
+                <div className="stat__label">Lessons completed</div>
+              </div>
+              <div className="stat">
+                <div className="stat__value">{stats?.longest_streak ?? 0}</div>
+                <div className="stat__label">Longest streak</div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-export default Profile;

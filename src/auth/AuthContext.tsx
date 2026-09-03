@@ -1,45 +1,13 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type {
   User as SupabaseUser,
 } from "@supabase/supabase-js";
 
 import { supabase } from "../lib/supabase";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-
-  login: (
-    email: string,
-    password: string
-  ) => Promise<void>;
-
-  register: (
-    username: string,
-    email: string,
-    password: string
-  ) => Promise<void>;
-
-  logout: () => Promise<void>;
-}
-
-const AuthContext =
-  createContext<
-    AuthContextType | undefined
-  >(undefined);
+import { beginOnboarding } from "../lib/onboarding";
+import { AuthContext } from "./authStore";
+import type { User } from "./authStore";
 
 function convertUser(
   authUser: SupabaseUser,
@@ -107,54 +75,49 @@ export function AuthProvider({
   }
 
   // -----------------------------------------
-  // INITIAL SESSION
+  // INITIAL AUTHENTICATION
   // -----------------------------------------
 
   useEffect(() => {
     let mounted = true;
 
-    async function initializeAuth() {
+    const initializeAuth = async () => {
       try {
         const {
           data: { session },
           error,
-        } =
-          await supabase.auth.getSession();
-
-        if (error) {
-          console.error(
-            "Session error:",
-            error.message
-          );
-
-          if (mounted) {
-            setUser(null);
-          }
-
-          return;
-        }
+        } = await supabase.auth.getSession();
 
         if (!mounted) {
           return;
         }
 
-        if (session?.user) {
-          /*
-           * IMPORTANT:
-           *
-           * Do NOT wait for the profiles
-           * table here.
-           *
-           * Supabase Auth already gives us
-           * the authenticated user immediately.
-           */
+        if (error) {
+          console.error(
+            "Session initialization failed:",
+            error.message
+          );
 
+          setUser(null);
+          return;
+        }
+
+        if (session?.user) {
+          // Set the authenticated user immediately.
           setUser(
             convertUser(
               session.user,
-              session.user.user_metadata
-                ?.username
+              session.user.user_metadata?.username
             )
+          );
+
+          // Load profile in the background.
+          loadProfile(session.user).then(
+            (profileUser) => {
+              if (mounted) {
+                setUser(profileUser);
+              }
+            }
           );
         } else {
           setUser(null);
@@ -173,19 +136,19 @@ export function AuthProvider({
           setIsLoading(false);
         }
       }
-    }
+    };
 
     initializeAuth();
 
     // -----------------------------------------
-    // AUTH STATE CHANGES
+    // LISTEN FOR AUTH CHANGES
     // -----------------------------------------
 
     const {
       data: { subscription },
     } =
       supabase.auth.onAuthStateChange(
-        async (_event, session) => {
+        (_event, session) => {
           if (!mounted) {
             return;
           }
@@ -196,39 +159,24 @@ export function AuthProvider({
             return;
           }
 
-          /*
-           * Set the authenticated user immediately.
-           * This prevents the UI from waiting on
-           * the profiles database query.
-           */
-
+          // Immediately update the UI.
           setUser(
             convertUser(
               session.user,
-              session.user.user_metadata
-                ?.username
+              session.user.user_metadata?.username
             )
           );
 
           setIsLoading(false);
 
-          /*
-           * Load the profile afterward.
-           *
-           * This is intentionally NOT awaited
-           * before showing the authenticated UI.
-           */
-
-          const currentUser =
-            await loadProfile(
-              session.user
-            );
-
-          if (!mounted) {
-            return;
-          }
-
-          setUser(currentUser);
+          // Profile lookup happens afterward.
+          loadProfile(session.user).then(
+            (profileUser) => {
+              if (mounted) {
+                setUser(profileUser);
+              }
+            }
+          );
         }
       );
 
@@ -254,16 +202,12 @@ export function AuthProvider({
         error,
       } =
         await supabase.auth.signInWithPassword({
-          email: email
-            .trim()
-            .toLowerCase(),
+          email: email.trim().toLowerCase(),
           password,
         });
 
       if (error) {
-        throw new Error(
-          error.message
-        );
+        throw new Error(error.message);
       }
 
       if (!data.user) {
@@ -273,25 +217,21 @@ export function AuthProvider({
       }
 
       /*
-       * Set the Auth user immediately.
+       * IMPORTANT:
+       *
+       * Do NOT wait for the profiles query
+       * before finishing login.
+       *
+       * Supabase authentication has already
+       * succeeded at this point.
        */
 
       setUser(
         convertUser(
           data.user,
-          data.user.user_metadata
-            ?.username
+          data.user.user_metadata?.username
         )
       );
-
-      /*
-       * Load the profile afterward.
-       */
-
-      const currentUser =
-        await loadProfile(data.user);
-
-      setUser(currentUser);
     } finally {
       setIsLoading(false);
     }
@@ -333,10 +273,6 @@ export function AuthProvider({
         );
       }
 
-      // ---------------------------------------
-      // CREATE SUPABASE AUTH USER
-      // ---------------------------------------
-
       const {
         data,
         error,
@@ -352,9 +288,7 @@ export function AuthProvider({
         });
 
       if (error) {
-        throw new Error(
-          error.message
-        );
+        throw new Error(error.message);
       }
 
       if (!data.user) {
@@ -363,11 +297,6 @@ export function AuthProvider({
         );
       }
 
-      /*
-       * If email confirmation is disabled,
-       * Supabase gives us a session immediately.
-       */
-
       if (data.session) {
         setUser(
           convertUser(
@@ -375,6 +304,22 @@ export function AuthProvider({
             cleanUsername
           )
         );
+
+        /*
+         * Mark the brand-new account as owing onboarding.
+         *
+         * This is the only place that knows an account was just
+         * created, so it is the only honest place to record it.
+         * RequireOnboarding reads the row back; a returning
+         * learner never has a pending one.
+         *
+         * Needs the session to exist — the write goes through
+         * RLS as the new user. If e-mail confirmation is ever
+         * turned on there is no session here, no marker, and the
+         * learner lands on the dashboard rather than being
+         * bounced to a tutorial they cannot save.
+         */
+        await beginOnboarding();
       }
     } finally {
       setIsLoading(false);
@@ -393,9 +338,7 @@ export function AuthProvider({
         await supabase.auth.signOut();
 
       if (error) {
-        throw new Error(
-          error.message
-        );
+        throw new Error(error.message);
       }
 
       setUser(null);
@@ -421,21 +364,4 @@ export function AuthProvider({
       {children}
     </AuthContext.Provider>
   );
-}
-
-// -----------------------------------------
-// USE AUTH
-// -----------------------------------------
-
-export function useAuth() {
-  const context =
-    useContext(AuthContext);
-
-  if (!context) {
-    throw new Error(
-      "useAuth must be used inside AuthProvider."
-    );
-  }
-
-  return context;
 }

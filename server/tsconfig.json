@@ -1,11 +1,28 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+
+    /*
+     * Bundler resolution, not NodeNext.
+     *
+     * The XP plan is read from the curriculum in ../src, which
+     * lives under the root package.json and is therefore ESM.
+     * Under NodeNext, typechecking those files demands explicit
+     * .js extensions on every relative import — a rewrite of the
+     * frontend to satisfy the backend's typechecker.
+     *
+     * Nothing is emitted from this config: tsx runs the server
+     * and handles module interop itself, and the server code has
+     * no CommonJS-specific usage.
+     */
+    "module": "esnext",
+    "moduleResolution": "bundler",
+
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

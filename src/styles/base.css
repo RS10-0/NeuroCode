@@ -1,0 +1,306 @@
+/* =========================================================
+   BUILDGENTIC — RESET & BASE
+
+   Everything here reads only semantic tokens, so it inherits
+   whichever surface is active.
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  width: 100%;
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
+  min-height: 100vh;
+
+  background: var(--canvas);
+  color: var(--ink);
+
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-regular);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+/* ---------------------------------------------------------
+   TYPOGRAPHY DEFAULTS
+
+   Fraunces is display-only and never appears below 20px.
+   Headings are set explicitly by components; these are the
+   floor so nothing renders unstyled.
+   --------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-2xl);
+}
+
+h2 {
+  font-size: var(--text-xl);
+}
+
+h3 {
+  font-size: var(--text-lg);
+}
+
+/* h4-h6 drop back to sans — below 20px Fraunces loses its
+   optical advantage and starts to read as decoration. */
+
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-snug);
+  color: var(--ink);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-color: var(--accent-rule);
+  text-underline-offset: 2px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.925em;
+  font-feature-settings: "liga" 0;
+}
+
+ul,
+ol {
+  list-style-position: outside;
+  padding-left: var(--space-5);
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---------------------------------------------------------
+   FORM ELEMENTS
+   --------------------------------------------------------- */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+}
+
+::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------
+   PROSE
+
+   The measure cap. Applied to every block of reading text.
+   --------------------------------------------------------- */
+
+.prose {
+  max-width: var(--measure);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+.prose > * + * {
+  margin-top: var(--space-4);
+}
+
+.prose strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.prose code {
+  background: var(--surface-inset);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  color: var(--ink);
+}
+
+.prose ul,
+.prose ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.prose--narrow {
+  max-width: var(--measure-narrow);
+}
+
+/* Mono micro-label. Metadata only — step counters, model
+   names, token ids, usage numbers. Never a section heading:
+   the uppercase-eyebrow-above-everything tic is what this
+   design is getting away from. */
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------
+   ACCESSIBILITY
+   --------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   SELECTION & SCROLLBARS
+   --------------------------------------------------------- */
+
+::selection {
+  background: var(--accent-bg);
+  color: var(--ink);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border: 3px solid var(--canvas);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+}

@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "BuildGentic",
+  "version": "0.1.0",
+  "description": "Ask one of your own BuildGentic agents about the page you are on.",
+
+  "minimum_chrome_version": "116",
+
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
+
+  "host_permissions": ["http://localhost:3001/*"],
+
+  "optional_host_permissions": ["<all_urls>"],
+
+  "externally_connectable": {
+    "matches": ["http://localhost:5199/*", "http://localhost:5200/*"]
+  },
+
+  "background": {
+    "service_worker": "sw.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Ask your agent"
+  },
+
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+U", "mac": "Command+Shift+U" },
+      "description": "Open the BuildGentic side panel"
+    }
+  },
+
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

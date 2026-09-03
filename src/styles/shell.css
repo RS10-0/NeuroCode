@@ -1,0 +1,571 @@
+/* =========================================================
+   BUILDGENTIC — APP SHELL
+
+   Left rail on desktop, bottom tab bar on mobile. The rail
+   adopts whichever surface the active route declares, so
+   moving from Learn to Build changes the entire window, not
+   just the content pane.
+   ========================================================= */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+/* =========================================================
+   LEFT RAIL
+   ========================================================= */
+
+.rail {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-rail);
+
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+
+  width: var(--rail-width);
+  height: 100vh;
+  padding: var(--space-4) var(--space-3);
+
+  background: var(--canvas);
+  border-right: 1px solid var(--rule);
+}
+
+.rail__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-2) var(--space-2);
+  margin-bottom: var(--space-6);
+
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rail__mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 26px;
+  height: 26px;
+
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius-sm);
+}
+
+.rail__wordmark {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+}
+
+.rail__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* =========================================================
+   RAIL GROUPS
+
+   One labelled group — Agents — holding the two destinations
+   that need telling apart: the workshop where an agent is made,
+   and the shelf where the finished ones live.
+
+   The indent is the whole mechanism, so it has to be
+   unmistakable without being a second level of chrome: a hairline
+   down the left of the children, and their icons and labels
+   pushed in far enough that the ungrouped destination below the
+   group does not read as part of it.
+   ========================================================= */
+
+.rail__group {
+  /* Breathing room above the label, none below it — the label
+     belongs to what follows, not to what precedes. */
+  margin-top: var(--space-4);
+}
+
+.rail__group-label {
+  padding: 0 var(--space-2) var(--space-2);
+
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.rail__group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  /* The line the children hang from. Sits inside the item's own
+     padding so it aligns with the icons rather than the text. */
+  margin-left: calc(var(--space-2) + 8px);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--rule);
+}
+
+/* The group is followed by a top-level destination again, so the
+   step back out needs to be visible. */
+.rail__group + .rail__item {
+  margin-top: var(--space-4);
+}
+
+.rail__item--nested {
+  /* Slightly quieter than a top-level destination: these are
+     reached through the group heading above them. */
+  font-size: var(--text-sm);
+}
+
+.rail__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  height: 36px;
+  padding: 0 var(--space-2);
+
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  text-decoration: none;
+  white-space: nowrap;
+
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.rail__item:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.rail__item--active {
+  background: var(--surface-2);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.rail__icon {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.rail__spacer {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------
+   XP METER
+
+   Sits above the footer rule rather than inside it: the
+   allowance is something the learner spends, not part of
+   their account identity, and grouping it with the sign-out
+   button read as though it were.
+   --------------------------------------------------------- */
+
+.rail__xp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.rail__xp:hover {
+  border-color: var(--accent-rule);
+}
+
+.rail__xp-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-secondary);
+}
+
+.rail__xp-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail__xp-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.rail__xp-of {
+  color: var(--ink-muted);
+}
+
+.rail__xp-track {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.rail__xp-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+/* Amber before it bites, red once it has. A learner should be
+   able to see it coming. */
+.rail__xp-fill--low {
+  background: var(--caution);
+}
+
+.rail__xp-fill--empty {
+  background: var(--error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail__xp-fill {
+    transition: none;
+  }
+}
+
+.rail__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.rail__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.rail__user-name {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail__user-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   MAIN CONTENT
+   ========================================================= */
+
+.shell__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) var(--space-9);
+}
+
+.page--wide {
+  max-width: 1400px;
+}
+
+.page--flush {
+  max-width: none;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.page__header {
+  margin-bottom: var(--space-6);
+}
+
+.page__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+.page__lede {
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+  max-width: var(--measure);
+}
+
+/*
+ * The group a page belongs to, above its title.
+ *
+ * Says "Agents" over both Agent Builder and My Agents, so the
+ * rail's grouping is confirmed by the page itself rather than
+ * being something a learner has to remember from the sidebar.
+ */
+.page__eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+}
+
+.page__footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-muted);
+  max-width: var(--measure);
+}
+
+.page__footnote svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+/* =========================================================
+   MOBILE TAB BAR
+
+   The old app hid its sidebar at 700px and shipped no
+   replacement, so there was no navigation at all on a phone.
+   ========================================================= */
+
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .rail {
+    display: none;
+  }
+
+  .shell__main {
+    padding-bottom: var(--tabbar-height);
+  }
+
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+
+  .page__title {
+    font-size: var(--text-xl);
+  }
+
+  .tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-tabbar);
+
+    display: flex;
+    height: var(--tabbar-height);
+    padding-bottom: env(safe-area-inset-bottom);
+
+    background: var(--canvas);
+    border-top: 1px solid var(--rule);
+  }
+
+  .tabbar__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+
+    color: var(--ink-muted);
+    font-size: var(--text-2xs);
+    text-decoration: none;
+
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .tabbar__item--active {
+    color: var(--accent);
+  }
+}
+
+/* =========================================================
+   LESSON FOCUS MODE
+
+   Escapes the shell entirely. No rail, no tab bar — one step
+   at a time in a measure-capped column.
+   ========================================================= */
+
+.focus {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.focus__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+
+  background: var(--canvas);
+  border-bottom: 1px solid var(--rule);
+}
+
+.focus__bar-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  height: var(--lesson-bar-height);
+  padding: 0 var(--space-5);
+
+  max-width: 1160px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.focus__lesson-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus__bar-track {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-2);
+  width: 100%;
+}
+
+.focus__body {
+  flex: 1;
+  width: 100%;
+  max-width: calc(68ch + 320px);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5) var(--space-9);
+}
+
+.focus__step-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  color: var(--ink);
+  max-width: var(--measure);
+  margin-bottom: var(--space-4);
+}
+
+/* The activity frame breaks out past the prose measure — the
+   interactive surface needs more room than the reading does. */
+
+.focus__activity {
+  margin: var(--space-6) 0;
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.focus__feedback {
+  margin-top: var(--space-4);
+  max-width: var(--measure);
+}
+
+.focus__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+
+  background: var(--canvas);
+  border-top: 1px solid var(--rule);
+}
+
+.focus__footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  min-height: 64px;
+  padding: var(--space-3) var(--space-5);
+
+  max-width: calc(68ch + 320px);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.focus__hint {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .focus__bar-inner,
+  .focus__bar-track,
+  .focus__footer-inner {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .focus__body {
+    padding: var(--space-6) var(--space-4) var(--space-8);
+  }
+
+  .focus__step-title {
+    font-size: var(--text-lg);
+  }
+
+  .focus__activity {
+    padding: var(--space-4);
+    margin-left: calc(var(--space-1) * -1);
+    margin-right: calc(var(--space-1) * -1);
+  }
+}

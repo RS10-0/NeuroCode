@@ -1,179 +1,173 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { Eye, EyeOff } from "lucide-react";
 
-function Register() {
+import { useAuth } from "../auth/useAuth";
+import BrandMark from "../components/BrandMark";
+import { useSurface } from "../components/Surface";
+import { Button, Callout, Field, IconButton, Input } from "../components/ui";
+
+export default function Register() {
+  useSurface("learn");
+
   const navigate = useNavigate();
-  const { register, isLoading } = useAuth();
+  const { register, isLoading: isAuthLoading } = useAuth();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    if (!username.trim()) {
+      setError("Choose a display name.");
       return;
     }
 
     if (password.length < 8) {
-      setError(
-        "Password must be at least 8 characters."
-      );
+      setError("Passwords need at least 8 characters.");
       return;
     }
 
-    try {
-      await register(
-        username,
-        email,
-        password
-      );
+    if (password !== confirmPassword) {
+      setError("Those passwords don't match.");
+      return;
+    }
 
-      navigate("/dashboard");
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to create account."
-      );
+    setIsSubmitting(true);
+
+    try {
+      await register(username, email, password);
+
+      /*
+       * New accounts go to onboarding, not the dashboard —
+       * the literacy check decides where they should start.
+       */
+      navigate("/onboarding", { replace: true });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Couldn't create your account. Try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const isBusy = isSubmitting || isAuthLoading;
+
+  const confirmError =
+    confirmPassword.length > 0 && password !== confirmPassword
+      ? "Doesn't match"
+      : undefined;
+
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-header">
-          <Link to="/" className="auth-logo">
-            NeuroCode
-          </Link>
+    <div className="auth">
+      <div className="auth__inner">
+        <Link to="/" className="auth__brand">
+          <span className="auth__brand-mark">
+            <BrandMark size={14} />
+          </span>
+          <span className="auth__brand-word">BuildGentic</span>
+        </Link>
 
-          <p className="eyebrow">
-            GET STARTED
-          </p>
+        <h1 className="auth__title">Start building</h1>
+        <p className="auth__lede">
+          Learn how AI actually works, then make something with it.
+        </p>
 
-          <h1>Create your account</h1>
+        {error ? <Callout tone="error">{error}</Callout> : null}
 
-          <p>
-            Start learning programming with
-            NeuroCode.
-          </p>
-        </div>
+        <form
+          className="auth__form"
+          onSubmit={handleSubmit}
+          style={{ marginTop: error ? "var(--space-4)" : 0 }}
+          noValidate
+        >
+          <Field label="Display name" hint="Shown on anything you publish.">
+            {({ id, describedBy }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                autoComplete="nickname"
+                placeholder="Ada"
+                value={username}
+                disabled={isBusy}
+                onChange={(event) => setUsername(event.target.value)}
+              />
+            )}
+          </Field>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="username">
-              Username
-            </label>
+          <Field label="Email">
+            {({ id }) => (
+              <Input
+                id={id}
+                type="email"
+                autoComplete="email"
+                placeholder="name@school.edu"
+                value={email}
+                disabled={isBusy}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            )}
+          </Field>
 
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(event) =>
-                setUsername(
-                  event.target.value
-                )
-              }
-              placeholder="Choose a username"
-              required
-            />
-          </div>
+          <Field label="Password" hint="At least 8 characters.">
+            {({ id, describedBy }) => (
+              <span className="auth__password-wrap">
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={password}
+                  disabled={isBusy}
+                  onChange={(event) => setPassword(event.target.value)}
+                  style={{ paddingRight: "var(--space-7)" }}
+                />
+                <IconButton
+                  className="auth__password-toggle"
+                  size="sm"
+                  label={showPassword ? "Hide password" : "Show password"}
+                  icon={showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  onClick={() => setShowPassword((current) => !current)}
+                />
+              </span>
+            )}
+          </Field>
 
-          <div className="form-group">
-            <label htmlFor="email">
-              Email
-            </label>
+          <Field label="Confirm password" error={confirmError}>
+            {({ id, invalid, describedBy }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirmPassword}
+                invalid={invalid}
+                disabled={isBusy}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            )}
+          </Field>
 
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) =>
-                setEmail(
-                  event.target.value
-                )
-              }
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">
-              Password
-            </label>
-
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(
-                  event.target.value
-                )
-              }
-              placeholder="At least 8 characters"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirm-password">
-              Confirm password
-            </label>
-
-            <input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(
-                  event.target.value
-                )
-              }
-              placeholder="Enter your password again"
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="auth-error">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="primary-button auth-submit"
-            disabled={isLoading}
-          >
-            {isLoading
-              ? "Creating account..."
-              : "Create Account"}
-          </button>
+          <Button type="submit" variant="primary" size="lg" block disabled={isBusy}>
+            {isBusy ? "Creating account…" : "Create account"}
+          </Button>
         </form>
 
-        <div className="auth-footer">
-          <p>
-            Already have an account?{" "}
-            <Link to="/login">
-              Log in
-            </Link>
-          </p>
-        </div>
+        <p className="auth__footer">
+          Already have an account? <Link to="/login">Sign in</Link>
+        </p>
       </div>
     </div>
   );
 }
-
-export default Register;

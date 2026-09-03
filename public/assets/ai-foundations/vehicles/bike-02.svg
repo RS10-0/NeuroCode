@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" role="img" aria-label="Bike" fill="none" stroke="#4a453c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <title>Bike</title>
+  <circle cx="26" cy="54" r="16"/>
+  <circle cx="94" cy="54" r="16"/>
+  <path d="M26 54 L52 38 L72 54 L52 38 L60 26 L94 54"/>
+  <path d="M52 54 L52 38"/>
+  <path d="M54 26 L70 26"/>
+  <path d="M44 34 L60 34"/>
+</svg>

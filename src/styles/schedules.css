@@ -1,0 +1,786 @@
+/* =========================================================
+   BUILDGENTIC — SCHEDULED AGENT RUNS
+
+   The screen where a learner hands their agent a job and walks
+   away. Everything here is arranged around one idea: the run
+   history is not a log, it is the EVIDENCE, and it is the only
+   place the truth about an unattended run lives.
+
+   So the outcome of a run is carried by shape and colour before
+   it is carried by words — a confabulated run has a red rail
+   down its side and a quoted sentence, a skipped one is grey and
+   quiet — and a learner scanning the list can tell a good week
+   from a bad one without reading a single label.
+
+   Reads only semantic tokens, like every other stylesheet here.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   HEADER
+   --------------------------------------------------------- */
+
+.schedhead__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ---------------------------------------------------------
+   THE FORM
+   --------------------------------------------------------- */
+
+.schedform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/*
+ * Wraps rather than collapsing at a breakpoint.
+ *
+ * The row holds one, two or three controls depending on the
+ * cadence — the time and weekday pickers only exist for the
+ * clock-anchored two — so a fixed column count would leave a
+ * hole on the cadences that do not use them.
+ */
+.schedform__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.schedform__row > * {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.schedform__toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.schedtoggle {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.schedtoggle:hover {
+  border-color: var(--rule-strong);
+}
+
+.schedtoggle:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-rule);
+  outline-offset: 1px;
+}
+
+.schedtoggle input {
+  margin-top: 3px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.schedtoggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.schedtoggle strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.schedtoggle small {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+}
+
+.schedform__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------
+   ONE SCHEDULE
+   --------------------------------------------------------- */
+
+.schedfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0 0 var(--space-4);
+}
+
+.schedfacts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.schedfacts dt {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.schedfacts dd {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The task, shown as the agent will receive it.
+ *
+ * Quoted and set apart because it is not a description of what
+ * the schedule does — it IS what the schedule does, verbatim,
+ * every run. A learner debugging a bad result needs to read the
+ * exact words their agent was given.
+ */
+.schedtask {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--rule-strong);
+  background: var(--surface-inset);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+.schedactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.schedadd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.schedadd__note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  max-width: var(--measure-narrow);
+}
+
+/* ---------------------------------------------------------
+   RUN HISTORY
+   --------------------------------------------------------- */
+
+.schedruns__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: var(--weight-medium);
+}
+
+.schedruns__empty {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--ink-secondary);
+}
+
+.schedruns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/*
+ * A run, with its outcome on the rail.
+ *
+ * The colour is the first thing read and the label is the
+ * second. That order matters on this screen more than most:
+ * somebody opening it after a week away is scanning for the red
+ * one, and making them read seven labels to find it is making
+ * them do the machine's job.
+ */
+.runcard {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: var(--space-3) var(--space-4);
+}
+
+.runcard--correct {
+  border-left-color: var(--correct);
+}
+
+.runcard--caution {
+  border-left-color: var(--caution);
+}
+
+.runcard--error {
+  border-left-color: var(--error);
+  background: var(--error-bg);
+}
+
+.runcard--neutral {
+  border-left-color: var(--rule-strong);
+}
+
+.runcard__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.runcard__when {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.runcard__meta {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.runcard__meaning {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+  color: var(--ink);
+}
+
+/*
+ * The sentence that got the run flagged.
+ *
+ * Quoted, in the agent's own words, because a warning a learner
+ * cannot check is a warning they learn to scroll past. Showing
+ * them what it said lets them judge; telling them it lied asks
+ * them to take our word for it.
+ */
+/* ---------------------------------------------------------
+   FILES ON A RUN CARD
+
+   The same object the Test panel shows, in a tighter frame: a
+   run card is one of ten in a list, so the file sits inline
+   rather than as a block of its own.
+
+   It is directly under the outcome line and ABOVE the
+   expandable output, which is the position that matters. A
+   learner scanning a week of runs should be able to see which
+   ones produced something without opening any of them — and a
+   run whose answer claims a report while showing no file here
+   is a contradiction they can spot at a glance.
+   --------------------------------------------------------- */
+
+.runcard__files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.runcard__file {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+}
+
+.runcard__file svg {
+  flex: none;
+}
+
+.runcard__file-name {
+  font-weight: 600;
+  color: var(--ink-secondary);
+  /* A filename is built from a model-written title. Sanitised
+     to plain ASCII, but still capable of being eighty
+     characters of one word. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.runcard__file-size {
+  font-variant-numeric: tabular-nums;
+}
+
+.runcard__file > button {
+  margin-left: auto;
+}
+
+/* Full width on its own line: it is a sentence, and it is the
+   one thing here somebody has to read before forwarding the
+   file to anyone. */
+.runcard__file-note {
+  flex-basis: 100%;
+  margin: var(--space-1) 0 0;
+  color: var(--caution);
+  font-style: italic;
+}
+
+.runcard__claim {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--error-rule);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--error);
+}
+
+.runcard__claim svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.runcard__claim q {
+  font-style: italic;
+}
+
+.runcard__missed {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.runcard__toggle {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.runcard__toggle:hover {
+  color: var(--accent-hover);
+}
+
+.runcard__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.runcard__body {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.runcard__output {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------
+   THE TRACE
+
+   The same events the Test panel's step list renders, because
+   they are the same events. What a learner sees when they test
+   an agent and what they see a week later in its history should
+   not be two different pictures of one run.
+   --------------------------------------------------------- */
+
+.runtrace {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--rule);
+}
+
+.runtrace__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.runtrace__item svg {
+  flex: none;
+  align-self: center;
+  color: var(--ink-muted);
+}
+
+.runtrace__item--limit {
+  background: var(--caution-bg);
+  color: var(--caution);
+}
+
+.runtrace__item--limit svg {
+  color: var(--caution);
+}
+
+.runtrace__tool {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  flex: none;
+}
+
+.runtrace__detail {
+  color: var(--ink-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------
+   NARROW
+   --------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .schedfacts {
+    gap: var(--space-4);
+  }
+
+  /* The meta line stops hugging the right edge, where on a
+     narrow screen it would wrap onto its own line anyway and
+     read as an orphan. */
+  .runcard__meta {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .schedactions .btn,
+  .schedform__actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* =========================================================
+   THE FEED
+
+   A popover in the rail's footer, opening up and to the right
+   because that is where the room is: the rail sits at the left
+   edge and its footer at the bottom, so a panel dropping down
+   would open off-screen.
+
+   On the narrow layout the rail becomes a bottom tab bar and the
+   footer is not on screen at all, so the panel anchors to the
+   viewport instead — see the media query at the end.
+   ========================================================= */
+
+.feed {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * The count, not a dot.
+ *
+ * A dot says "something happened"; a number says whether it is
+ * worth stopping for. Capped at 9+ because past that the exact
+ * figure stops changing the decision.
+ */
+.feed__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--radius-full);
+  background: var(--error);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+
+.feed__panel {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 60;
+  width: min(340px, calc(100vw - var(--space-5) * 2));
+  max-height: min(60vh, 480px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.feed__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.feed__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.feed__mark {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.feed__mark:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.feed__empty {
+  margin: 0;
+  padding: var(--space-5) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+.feed__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.feed__item {
+  border-bottom: 1px solid var(--rule);
+}
+
+.feed__item:last-child {
+  border-bottom: 0;
+}
+
+/* Unread is carried by a rail rather than a background wash, so
+   a list that is entirely unread still reads as a list. */
+.feed__item--unread {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.feed__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.feed__link:hover {
+  background: var(--surface-2);
+}
+
+a.feed__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.feed__link--dead {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.feed__item-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.feed__item-head strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.feed__icon {
+  flex: none;
+  display: inline-flex;
+  color: var(--ink-muted);
+}
+
+.feed__icon--schedule_disabled,
+.feed__icon--run_failed {
+  color: var(--error);
+}
+
+.feed__icon--limit_advisory {
+  color: var(--caution);
+}
+
+.feed__icon--run_output {
+  color: var(--correct);
+}
+
+.feed__when {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The body, clamped to four lines.
+ *
+ * A run's output can be two thousand characters and the feed is
+ * a glance, not a reader — the full answer is one click away on
+ * the schedule page.
+ */
+.feed__body {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  /* The rail is gone at this width; anchor to the viewport so
+     the panel cannot open off the bottom-left corner. */
+  .feed__panel {
+    position: fixed;
+    bottom: auto;
+    top: var(--space-4);
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-height: 70vh;
+  }
+}
+
+/* ---------------------------------------------------------
+   THE DASHBOARD DIGEST
+   --------------------------------------------------------- */
+
+.digest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.digest__item + .digest__item {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+
+.digest__link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.digest__link:hover strong {
+  color: var(--accent);
+}
+
+a.digest__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.digest__link strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/* Two lines. The dashboard is a glance; the run itself is a
+   click away. */
+.digest__link span {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.digest__link--dead {
+  opacity: 0.75;
+}

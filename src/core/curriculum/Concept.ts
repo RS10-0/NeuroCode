@@ -5,7 +5,5 @@ export interface Concept {
 
   description: string;
 
-  language: string;
-
   prerequisites: string[];
 }

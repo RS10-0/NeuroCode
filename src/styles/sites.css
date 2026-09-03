@@ -1,0 +1,1927 @@
+/* =========================================================
+   BUILDGENTIC — PUBLISHED AGENT PAGES
+
+   The one stylesheet in this project that is not BuildGentic's
+   own surface, and the reason is worth stating: everything
+   else here is one application with a consistent voice, and a
+   published page belongs to the student who made it. A study
+   tool built by a sixteen-year-old should not look like a
+   settings screen.
+
+   What it borrows is the METHOD rather than the palette.
+   Components below read only semantic names — --canvas, --ink,
+   --accent — exactly as components.css does, and the palettes
+   are token blocks that redefine those names. So a palette is
+   twelve lines and no component knows which one is active,
+   which is the property that makes the theme a field in a JSON
+   document rather than a stylesheet somebody generates.
+
+   Every palette exists in light and dark. That is what lets
+   "make the background darker" be a value change on
+   theme.mode instead of a colour somebody has to invent.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   FALLBACK SCREENS
+
+   Loading, 404 and unavailable. Outside the palette system on
+   purpose: they render before a palette is known.
+   --------------------------------------------------------- */
+
+.sitefallback {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: #fbfaf7;
+  color: #171512;
+  font-family: var(--font-sans);
+}
+
+.sitefallback__inner {
+  max-width: 44ch;
+  text-align: center;
+}
+
+.sitefallback__pulse {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-full);
+  background: #e6e2d9;
+  animation: sitefallback-pulse 1.4s var(--ease-in-out) infinite;
+}
+
+@keyframes sitefallback-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sitefallback__pulse { animation: none; opacity: 0.6; }
+}
+
+.sitefallback__title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.sitefallback__body {
+  margin: 0 0 var(--space-5);
+  color: #4a453c;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+}
+
+.sitefallback__note {
+  margin: 0;
+  color: #8a8478;
+  font-size: var(--text-sm);
+}
+
+.sitefallback__link {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid #d8d2c5;
+  border-radius: var(--radius-full);
+  color: #171512;
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.sitefallback__link:hover { background: #f4f1ea; }
+
+/* =========================================================
+   PALETTES
+
+   Six hue families, each in two modes. The semantic names are
+   the same ones components.css uses, so anything already
+   written against them would drop in here unchanged.
+
+   Contrast is a constraint on this table rather than an
+   afterthought, because a student picks a palette and never
+   sees the numbers. Across all twelve combinations: --ink on
+   --canvas clears 15:1, --ink-secondary clears 7:1, and
+   --ink-muted clears 4.5:1 — which is the one that had to be
+   fixed. It was tuned by eye at first and came out around
+   3.4:1, which reads fine on a large heading and is a genuine
+   failure on the 11px chat status and the 12px footer, where
+   it is actually used.
+   ========================================================= */
+
+.site {
+  /* Shared across every palette. Only colour varies below. */
+  --site-max: 68ch;
+  --site-wide: 1140px;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--site-font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ----- SAGE ----- */
+
+.site[data-palette="sage"][data-mode="light"] {
+  --canvas: #fbfaf6;
+  --surface-1: #ffffff;
+  --surface-2: #f1f0e8;
+  --rule: #e4e3d8;
+  --rule-strong: #cfcdbe;
+  --ink: #1a1c19;
+  --ink-secondary: #4b4f48;
+  --ink-muted: #6b6e65;
+  --accent: #3a6146;
+  --accent-hover: #2c4b35;
+  --accent-bg: #e6efe7;
+  --accent-rule: #bcd3c0;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="sage"][data-mode="dark"] {
+  --canvas: #14180f;
+  --surface-1: #1c2117;
+  --surface-2: #242a1e;
+  --rule: #333a2b;
+  --rule-strong: #46503b;
+  --ink: #eef1e8;
+  --ink-secondary: #b6bfae;
+  --ink-muted: #7f8a77;
+  --accent: #9dc9a6;
+  --accent-hover: #b6d9bd;
+  --accent-bg: #24301f;
+  --accent-rule: #3d5340;
+  --on-accent: #10160d;
+}
+
+/* ----- OCEAN ----- */
+
+.site[data-palette="ocean"][data-mode="light"] {
+  --canvas: #f8fafc;
+  --surface-1: #ffffff;
+  --surface-2: #eef2f7;
+  --rule: #dfe6ee;
+  --rule-strong: #c4d0de;
+  --ink: #131a22;
+  --ink-secondary: #46535f;
+  --ink-muted: #63707d;
+  --accent: #1f5f8b;
+  --accent-hover: #17496b;
+  --accent-bg: #e4eff7;
+  --accent-rule: #b3d0e4;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="ocean"][data-mode="dark"] {
+  --canvas: #0c1420;
+  --surface-1: #141d2b;
+  --surface-2: #1c2637;
+  --rule: #2a374a;
+  --rule-strong: #3b4a60;
+  --ink: #e8eef6;
+  --ink-secondary: #aab9c9;
+  --ink-muted: #75849a;
+  --accent: #7cc0ea;
+  --accent-hover: #9bd2f4;
+  --accent-bg: #16283a;
+  --accent-rule: #2f4d69;
+  --on-accent: #08131f;
+}
+
+/* ----- PLUM ----- */
+
+.site[data-palette="plum"][data-mode="light"] {
+  --canvas: #fbf8fb;
+  --surface-1: #ffffff;
+  --surface-2: #f4eef4;
+  --rule: #e8dee8;
+  --rule-strong: #d2c1d2;
+  --ink: #1c161c;
+  --ink-secondary: #524a54;
+  --ink-muted: #726874;
+  --accent: #6b3a72;
+  --accent-hover: #532c59;
+  --accent-bg: #f1e6f2;
+  --accent-rule: #d5bcd9;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="plum"][data-mode="dark"] {
+  --canvas: #140f16;
+  --surface-1: #1d161f;
+  --surface-2: #261e29;
+  --rule: #362b3a;
+  --rule-strong: #4b3c50;
+  --ink: #f1eaf2;
+  --ink-secondary: #bfb0c3;
+  --ink-muted: #8b7d90;
+  --accent: #d6a3de;
+  --accent-hover: #e4bceb;
+  --accent-bg: #2a1f2e;
+  --accent-rule: #4e3a55;
+  --on-accent: #150e17;
+}
+
+/* ----- SAND ----- */
+
+.site[data-palette="sand"][data-mode="light"] {
+  --canvas: #fdfaf4;
+  --surface-1: #ffffff;
+  --surface-2: #f5eee0;
+  --rule: #ebe1cf;
+  --rule-strong: #d8c8ac;
+  --ink: #1e1a13;
+  --ink-secondary: #554d3d;
+  --ink-muted: #746b57;
+  --accent: #8a5a1c;
+  --accent-hover: #6d4614;
+  --accent-bg: #f8ecd8;
+  --accent-rule: #e0c99f;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="sand"][data-mode="dark"] {
+  --canvas: #17130c;
+  --surface-1: #201a12;
+  --surface-2: #2a231a;
+  --rule: #3a3125;
+  --rule-strong: #4f4433;
+  --ink: #f4eee2;
+  --ink-secondary: #c3b69f;
+  --ink-muted: #8f8370;
+  --accent: #e5b978;
+  --accent-hover: #f0cd97;
+  --accent-bg: #2c2317;
+  --accent-rule: #55452c;
+  --on-accent: #171208;
+}
+
+/* ----- SLATE ----- */
+
+.site[data-palette="slate"][data-mode="light"] {
+  --canvas: #fafafa;
+  --surface-1: #ffffff;
+  --surface-2: #f0f0f1;
+  --rule: #e3e3e5;
+  --rule-strong: #c9c9cd;
+  --ink: #16171a;
+  --ink-secondary: #4c4e54;
+  --ink-muted: #686b73;
+  --accent: #33383f;
+  --accent-hover: #1f2429;
+  --accent-bg: #eaebed;
+  --accent-rule: #c4c6cb;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="slate"][data-mode="dark"] {
+  --canvas: #0f1012;
+  --surface-1: #17181b;
+  --surface-2: #1f2024;
+  --rule: #2c2e33;
+  --rule-strong: #3e4046;
+  --ink: #eceef1;
+  --ink-secondary: #b0b3ba;
+  --ink-muted: #7b7f88;
+  --accent: #c9ced6;
+  --accent-hover: #e0e4ea;
+  --accent-bg: #212328;
+  --accent-rule: #3a3d44;
+  --on-accent: #101114;
+}
+
+/* ----- EMBER ----- */
+
+.site[data-palette="ember"][data-mode="light"] {
+  --canvas: #fdf8f6;
+  --surface-1: #ffffff;
+  --surface-2: #f7ebe7;
+  --rule: #eeddd7;
+  --rule-strong: #dcbfb5;
+  --ink: #1f1614;
+  --ink-secondary: #574943;
+  --ink-muted: #77655e;
+  --accent: #a03e2c;
+  --accent-hover: #813022;
+  --accent-bg: #fae7e1;
+  --accent-rule: #e6bfb3;
+  --on-accent: #ffffff;
+}
+
+.site[data-palette="ember"][data-mode="dark"] {
+  --canvas: #17100e;
+  --surface-1: #201714;
+  --surface-2: #2a1f1b;
+  --rule: #3b2b26;
+  --rule-strong: #513c34;
+  --ink: #f6ebe7;
+  --ink-secondary: #c8b2ab;
+  --ink-muted: #94807a;
+  --accent: #ee9a83;
+  --accent-hover: #f7b6a3;
+  --accent-bg: #2d1f1a;
+  --accent-rule: #573830;
+  --on-accent: #180d0a;
+}
+
+/* =========================================================
+   FONT PAIRS AND CORNERS
+
+   Two more closed vocabularies from the schema, resolved to
+   the variables every component below reads.
+   ========================================================= */
+
+.site[data-font="editorial"] {
+  --site-font-display: var(--font-display);
+  --site-font-body: var(--font-sans);
+  --site-display-weight: 600;
+  --site-display-tracking: var(--tracking-tight);
+}
+
+.site[data-font="grotesk"] {
+  --site-font-display: var(--font-sans);
+  --site-font-body: var(--font-sans);
+  --site-display-weight: 600;
+  --site-display-tracking: var(--tracking-tight);
+}
+
+.site[data-font="technical"] {
+  --site-font-display: var(--font-mono);
+  --site-font-body: var(--font-sans);
+  --site-display-weight: 500;
+  --site-display-tracking: var(--tracking-snug);
+}
+
+.site[data-corners="sharp"] {
+  --site-radius: 0px;
+  --site-radius-sm: 0px;
+  --site-radius-pill: 2px;
+}
+
+.site[data-corners="soft"] {
+  --site-radius: var(--radius-lg);
+  --site-radius-sm: var(--radius-sm);
+  --site-radius-pill: var(--radius-full);
+}
+
+.site[data-corners="round"] {
+  --site-radius: var(--radius-xl);
+  --site-radius-sm: var(--radius-md);
+  --site-radius-pill: var(--radius-full);
+}
+
+/* =========================================================
+   SHARED PIECES
+
+   Used by all four templates. A template arranges these; it
+   does not restyle them, which is what keeps switching
+   templates non-destructive.
+   ========================================================= */
+
+.site * { box-sizing: border-box; }
+
+.site h1, .site h2, .site h3 {
+  font-family: var(--site-font-display);
+  font-weight: var(--site-display-weight);
+  letter-spacing: var(--site-display-tracking);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+.site p { margin: 0; }
+
+.site__wrap {
+  width: 100%;
+  max-width: var(--site-wide);
+  margin: 0 auto;
+  padding-inline: var(--space-5);
+}
+
+.site__prose { max-width: var(--site-max); }
+
+.site-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-rule);
+  border-radius: var(--site-radius-pill);
+  line-height: 1;
+}
+
+.site-avatar--lg { width: 72px; height: 72px; font-size: 34px; }
+.site-avatar--md { width: 48px; height: 48px; font-size: 22px; }
+.site-avatar--sm { width: 32px; height: 32px; font-size: 15px; }
+
+.site-tagline {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--site-radius-pill);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-rule);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.site-body {
+  color: var(--ink-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+}
+
+.site-body > p + p { margin-top: 0.9em; }
+
+/* ----- SECTIONS ----- */
+
+.site-section { padding-block: var(--space-7); }
+
+.site-section__title {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-4);
+}
+
+.site-features {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.site-feature {
+  padding: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--site-radius);
+}
+
+.site-feature__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--site-radius-sm);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.site-feature__title {
+  font-size: var(--text-md);
+  margin-bottom: var(--space-2);
+}
+
+.site-feature__body { color: var(--ink-secondary); font-size: var(--text-sm); }
+
+.site-steps {
+  display: grid;
+  gap: var(--space-4);
+  counter-reset: sitestep;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-step {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.site-step__num {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--site-radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.site-step__title { font-size: var(--text-md); margin-bottom: 4px; }
+.site-step__body { color: var(--ink-secondary); font-size: var(--text-sm); }
+
+.site-faq { display: grid; gap: 0; }
+
+.site-faq__item {
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.site-faq__item:last-child { border-bottom: 1px solid var(--rule); }
+
+.site-faq__q {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.site-faq__a { color: var(--ink-secondary); font-size: var(--text-sm); }
+
+/* ----- FOOTER ----- */
+
+.site-footer {
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.site-footer__badge {
+  color: var(--ink-muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.site-footer__badge:hover { color: var(--ink-secondary); }
+
+/* =========================================================
+   CHAT
+
+   One component, four placements. The transcript, composer and
+   states are identical everywhere; only the frame around them
+   changes, so a fix to the chat is a fix on every template.
+   ========================================================= */
+
+.sitechat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--site-radius);
+  overflow: hidden;
+}
+
+.sitechat__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+
+.sitechat__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-family: var(--site-font-body);
+}
+
+.sitechat__status {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.sitechat__log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sitechat__turn { display: flex; gap: var(--space-3); }
+
+.sitechat__turn--user { flex-direction: row-reverse; }
+
+.sitechat__bubble {
+  max-width: 46ch;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--site-radius);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A bubble holding rendered markdown rather than plain text.
+ *
+ * `pre-wrap` is what the plain-text bubble needs and exactly
+ * what a parsed one must not have: the parser has already
+ * turned blank lines into paragraph margins, so keeping the
+ * newlines as well doubles every gap.
+ *
+ * The `.md` rules come from lab.css, which is loaded globally,
+ * and read only semantic tokens — so they take on the student's
+ * palette here without a single override. What DOES need
+ * overriding is scale: those rules are written for a full-width
+ * reading panel, and this is a chat bubble.
+ */
+.sitechat__bubble--rich {
+  white-space: normal;
+}
+
+.sitechat__bubble--rich .md {
+  /* The bubble is the measure; the panel measure would let a
+     long answer push past the 46ch the layout allows. */
+  max-width: 100%;
+  font-family: var(--site-font-body);
+  font-size: var(--text-sm);
+}
+
+/* Tighter than the reading panel's rhythm, which is built for
+   prose somebody sits down with rather than a reply. */
+.sitechat__bubble--rich .md > * + * {
+  margin-top: 0.7em;
+}
+
+.sitechat__bubble--rich .md h1,
+.sitechat__bubble--rich .md h2,
+.sitechat__bubble--rich .md h3,
+.sitechat__bubble--rich .md h4 {
+  font-size: var(--text-md);
+  margin-top: 1em;
+}
+
+.sitechat__bubble--rich .md ul,
+.sitechat__bubble--rich .md ol {
+  padding-left: 1.3em;
+}
+
+.sitechat__bubble--rich .md li + li { margin-top: 0.25em; }
+
+.sitechat__bubble--rich .md pre {
+  font-size: var(--text-xs);
+  border-radius: var(--site-radius-sm);
+}
+
+.sitechat__bubble--rich .md :not(pre) > code {
+  font-size: 0.92em;
+}
+
+/* A wide table or code block scrolls inside the bubble rather
+   than stretching it — the same containment the page-level
+   rules rely on. */
+.sitechat__bubble--rich .md__scroll,
+.sitechat__bubble--rich .md pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sitechat__turn--assistant .sitechat__bubble {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+}
+
+.sitechat__turn--user .sitechat__bubble {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.sitechat__turn--error .sitechat__bubble {
+  background: transparent;
+  border: 1px dashed var(--rule-strong);
+  color: var(--ink-secondary);
+  font-style: italic;
+}
+
+.sitechat__caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  opacity: 0.5;
+  animation: sitechat-blink 1s steps(2) infinite;
+}
+
+@keyframes sitechat-blink { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sitechat__caret { animation: none; }
+}
+
+.sitechat__prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.sitechat__prompt {
+  padding: 6px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--site-radius-pill);
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+
+.sitechat__prompt:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-rule);
+  color: var(--accent);
+}
+
+.sitechat__form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-3);
+  border-top: 1px solid var(--rule);
+  background: var(--surface-1);
+}
+
+.sitechat__input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 140px;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--site-radius-sm);
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  resize: none;
+}
+
+.sitechat__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.sitechat__input::placeholder { color: var(--ink-muted); }
+
+.sitechat__send {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--site-radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.sitechat__send:hover:not(:disabled) { background: var(--accent-hover); }
+
+.sitechat__send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.sitechat__offline {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.site :where(button, a, textarea, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   TEMPLATE 1 — ASSISTANT
+
+   Chat is the page. One centred column: hero, then the chat
+   at full width, then everything else below it.
+   ========================================================= */
+
+.site--assistant .site-hero {
+  padding-block: var(--space-8) var(--space-6);
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+}
+
+.site--assistant .site-hero__headline {
+  font-size: clamp(var(--text-2xl), 5vw, var(--text-4xl));
+  max-width: 20ch;
+}
+
+.site--assistant .site-hero__subtext {
+  max-width: 54ch;
+  color: var(--ink-secondary);
+  font-size: var(--text-md);
+}
+
+.site--assistant .site-chatslot {
+  max-width: 760px;
+  margin: 0 auto var(--space-8);
+}
+
+.site--assistant .sitechat { height: min(560px, 68vh); }
+
+.site--assistant .site-sections {
+  border-top: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+
+/* =========================================================
+   TEMPLATE 2 — STUDY TOOL
+
+   A workspace. Sticky identity rail on the left, full-height
+   chat on the right, page content underneath the fold.
+   ========================================================= */
+
+.site--study .site-workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  padding-block: var(--space-6);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.site--study .site-rail {
+  position: sticky;
+  top: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.site--study .site-rail__id { display: grid; gap: var(--space-3); }
+
+.site--study .site-hero__headline { font-size: var(--text-2xl); }
+
+.site--study .site-hero__subtext {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.site--study .site-rail__prompts {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.site--study .site-rail__label {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-1);
+}
+
+.site--study .site-rail__prompt {
+  text-align: left;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--site-radius-sm);
+  background: var(--surface-1);
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.site--study .site-rail__prompt:hover {
+  border-color: var(--accent-rule);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.site--study .site-chatslot {
+  height: calc(100vh - var(--space-6) * 2);
+  height: calc(100dvh - var(--space-6) * 2);
+  position: sticky;
+  top: var(--space-6);
+}
+
+.site--study .sitechat { height: 100%; }
+
+/*
+ * The rail lists the prompts on this template, so the chat is
+ * told not to render its own — a React prop, not a CSS rule,
+ * which is why there is nothing here hiding them.
+ *
+ * That distinction cost a bug worth recording: this used to
+ * hide the rail's prompts below 900px and show the chat's
+ * instead, which meant a phone got neither. CSS cannot bring
+ * back an element React never rendered. The rail keeps its
+ * prompts at every width, and when the columns stack they sit
+ * above the chat, which is where a suggestion belongs anyway.
+ */
+
+.site--study .site-sections {
+  border-top: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+
+@media (max-width: 900px) {
+  .site--study .site-workspace {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .site--study .site-rail,
+  .site--study .site-chatslot { position: static; }
+
+  .site--study .site-chatslot { height: 70vh; }
+}
+
+/* =========================================================
+   TEMPLATE 3 — PORTFOLIO
+
+   Editorial scroll. Full-bleed hero, alternating content
+   bands, chat docked bottom-right as a launcher that expands
+   over the page.
+   ========================================================= */
+
+.site--portfolio .site-hero {
+  min-height: 78vh;
+  display: grid;
+  align-content: center;
+  gap: var(--space-5);
+  padding-block: var(--space-9);
+  border-bottom: 1px solid var(--rule);
+}
+
+.site--portfolio .site-hero__headline {
+  font-size: clamp(var(--text-3xl), 9vw, 92px);
+  max-width: 14ch;
+  line-height: 1.02;
+}
+
+.site--portfolio .site-hero__subtext {
+  max-width: 46ch;
+  color: var(--ink-secondary);
+  font-size: var(--text-lg);
+}
+
+.site--portfolio .site-band:nth-child(even) {
+  background: var(--surface-2);
+}
+
+.site--portfolio .site-band {
+  border-bottom: 1px solid var(--rule);
+}
+
+.site--portfolio .site-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.site--portfolio .site-section__title {
+  font-size: var(--text-lg);
+  position: sticky;
+  top: var(--space-5);
+  margin-bottom: 0;
+}
+
+@media (max-width: 820px) {
+  .site--portfolio .site-section { grid-template-columns: 1fr; }
+  .site--portfolio .site-section__title { position: static; }
+}
+
+.site-dock {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+  max-width: calc(100vw - var(--space-5) * 2);
+}
+
+.site-dock__launch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--accent-rule);
+  border-radius: var(--site-radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45);
+}
+
+.site-dock__launch:hover { background: var(--accent-hover); }
+
+.site-dock__panel {
+  width: min(400px, calc(100vw - var(--space-5) * 2));
+  height: min(560px, 70vh);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================================
+   TEMPLATE 4 — RESEARCH PROJECT
+
+   A document. Contents rail, narrow measure, abstract, and
+   the chat pinned directly under the abstract rather than at
+   either end of the page.
+   ========================================================= */
+
+.site--research .site-paper {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-7);
+  align-items: start;
+  padding-block: var(--space-7);
+}
+
+.site--research .site-toc {
+  position: sticky;
+  top: var(--space-6);
+  display: grid;
+  gap: var(--space-2);
+  padding-right: var(--space-4);
+  border-right: 1px solid var(--rule);
+}
+
+.site--research .site-toc__label {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+}
+
+.site--research .site-toc__link {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+.site--research .site-toc__link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.site--research .site-doc { max-width: var(--site-max); }
+
+.site--research .site-hero { display: grid; gap: var(--space-4); }
+
+.site--research .site-hero__headline {
+  font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
+}
+
+.site--research .site-hero__subtext {
+  color: var(--ink-secondary);
+  font-size: var(--text-md);
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--accent-rule);
+}
+
+.site--research .site-chatslot {
+  margin-block: var(--space-6);
+}
+
+.site--research .sitechat { height: min(460px, 60vh); }
+
+.site--research .site-section {
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.site--research .site-section__title {
+  font-size: var(--text-lg);
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.site--research .site-section__num {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+@media (max-width: 860px) {
+  .site--research .site-paper { grid-template-columns: 1fr; }
+
+  .site--research .site-toc {
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: var(--space-4);
+    padding-right: 0;
+  }
+}
+
+/* =========================================================
+   NARROW SCREENS
+
+   Shared adjustments. Each template has its own breakpoints
+   above; these apply to the pieces they all use.
+   ========================================================= */
+
+@media (max-width: 620px) {
+  .site__wrap { padding-inline: var(--space-4); }
+
+  .site-section { padding-block: var(--space-6); }
+
+  .sitechat__bubble { max-width: 100%; }
+
+  .site--assistant .sitechat { height: min(500px, 62vh); }
+
+  .site-dock {
+    right: var(--space-3);
+    bottom: var(--space-3);
+    left: var(--space-3);
+    align-items: stretch;
+  }
+
+  .site-dock__panel { width: 100%; height: min(520px, 72vh); }
+
+  .site-dock__launch { justify-content: center; }
+}
+
+/* =========================================================
+   THE EDITOR
+
+   BuildGentic's own surface, unlike everything above this line.
+   A student is inside the application here, so this half reads
+   the app's tokens and looks like the Builder next door; only
+   the preview inside it switches to the student's palette.
+
+   That boundary is exactly the `.site` class. Every rule above
+   is scoped under it, so the published page's colours cannot
+   leak into the editor around it and the editor's cannot leak
+   in.
+   ========================================================= */
+
+.siteedit__top {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.siteedit__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: start;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.siteedit__back:hover { color: var(--ink); }
+
+.siteedit__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.siteedit__title h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.siteedit__title p {
+  margin: 2px 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------
+   SPLIT
+
+   Controls left, preview right. The preview is the wider half
+   because it is the thing being judged; the controls only need
+   to be wide enough for a text field and a row of swatches.
+   --------------------------------------------------------- */
+
+.siteedit__split {
+  display: grid;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+  /* Room for the save bar, which is fixed and would otherwise
+     sit on top of the last control. */
+  padding-bottom: var(--space-8);
+}
+
+.siteedit__controls {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  position: sticky;
+  top: var(--space-4);
+  /* Its own scroll, so a long Content pane does not push the
+     preview off the top of the screen. */
+  max-height: calc(100vh - var(--space-8));
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-2);
+}
+
+.siteedit__stack {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.siteedit__group {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+}
+
+.siteedit__group--danger { border-color: var(--error-rule); }
+
+.siteedit__grouptitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+.siteedit__grouphint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.siteedit__grouphint code,
+.siteedit__group code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--surface-2);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
+
+/* ---------------------------------------------------------
+   TEMPLATE PICKER
+   --------------------------------------------------------- */
+
+.siteedit__templates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.siteedit__template {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+
+.siteedit__template:hover { border-color: var(--rule-strong); }
+
+.siteedit__template--active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.siteedit__templatename {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.siteedit__template--active .siteedit__templatename { color: var(--accent); }
+
+.siteedit__templateblurb {
+  color: var(--ink-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-snug);
+}
+
+/* The little drawing of each layout. The accent block is the
+   chat, which is the actual difference between the four. */
+
+.siteedit__sketch {
+  display: grid;
+  gap: 3px;
+  height: 56px;
+  padding: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.siteedit__sk {
+  display: block;
+  background: var(--rule-strong);
+  border-radius: 1px;
+}
+
+.siteedit__sk--chat { background: var(--accent); }
+
+.siteedit__sketch--assistant { grid-template-rows: 8px 1fr 6px; }
+.siteedit__sketch--assistant .siteedit__sk--bar { margin: 0 20%; }
+
+.siteedit__sketch--study {
+  grid-template-columns: 30% 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.siteedit__sketch--portfolio { grid-template-rows: 22px 1fr 1fr; position: relative; }
+.siteedit__sketch--portfolio .siteedit__sk--hero { background: var(--rule-strong); }
+.siteedit__sketch--portfolio .siteedit__sk--dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.siteedit__sketch--research {
+  grid-template-columns: 26% 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.siteedit__sketch--research .siteedit__sk--doc { background: var(--accent); }
+
+/* ---------------------------------------------------------
+   PALETTES
+   --------------------------------------------------------- */
+
+.siteedit__palettes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.siteedit__palette {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink-secondary);
+}
+
+.siteedit__palette:hover { border-color: var(--rule-strong); }
+
+.siteedit__palette--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.siteedit__palettename {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * The swatch carries `.site` and the palette attributes, so the
+ * three blocks below are the real tokens rather than a
+ * hardcoded approximation that would drift.
+ *
+ * `min-height` is reset because `.site` sets a full-viewport
+ * one for the published page, which is not what a 20px swatch
+ * wants.
+ */
+.siteedit__swatch {
+  display: flex;
+  width: 100%;
+  height: 22px;
+  min-height: 0;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+
+.siteedit__swatchcanvas { flex: 2; background: var(--canvas); }
+.siteedit__swatchaccent { flex: 1; background: var(--accent); }
+.siteedit__swatchink { flex: 1; background: var(--ink); }
+
+/* ---------------------------------------------------------
+   FIELDS
+   --------------------------------------------------------- */
+
+.siteedit__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.siteedit__count--full { color: var(--caution); }
+
+.siteedit__toggle {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  cursor: pointer;
+}
+
+.siteedit__toggle input { margin-top: 2px; }
+
+.siteedit__togglelabel {
+  display: block;
+  font-size: var(--text-sm);
+}
+
+.siteedit__togglehint {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.siteedit__prompts { display: grid; gap: var(--space-2); }
+
+/* ---------------------------------------------------------
+   DESCRIBE A CHANGE (Phase 2)
+
+   Sits above the tabs' content rather than inside a tab,
+   because a request can cross the Design/Content boundary and
+   putting it in either would hide half of what it does.
+   --------------------------------------------------------- */
+
+.siteedit__assist {
+  border-color: var(--accent-rule);
+  background: var(--accent-bg);
+}
+
+.siteedit__assist .siteedit__grouptitle { color: var(--accent); }
+
+.siteedit__assist textarea {
+  background: var(--surface-1);
+}
+
+.siteedit__assistrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.siteedit__examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.siteedit__example {
+  padding: 5px 11px;
+  border: 1px dashed var(--accent-rule);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  text-align: left;
+}
+
+.siteedit__example:hover {
+  background: var(--surface-1);
+  border-style: solid;
+}
+
+.siteedit__assistresult {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.siteedit__changes {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.1em;
+  display: grid;
+  gap: 3px;
+  font-size: var(--text-sm);
+}
+
+.siteedit__changes li { line-height: var(--leading-snug); }
+
+/* ---------------------------------------------------------
+   SECTIONS AND ITEMS
+   --------------------------------------------------------- */
+
+.siteedit__section {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+}
+
+.siteedit__sectionhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.siteedit__sectiongrip { color: var(--ink-muted); }
+
+.siteedit__sectionkind {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.siteedit__sectionactions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.siteedit__items { display: grid; gap: var(--space-3); }
+
+.siteedit__item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.siteedit__itemhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.siteedit__itemnum {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.siteedit__icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.siteedit__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.siteedit__icon:hover { border-color: var(--rule-strong); }
+
+.siteedit__icon--active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.siteedit__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---------------------------------------------------------
+   ADDRESS
+   --------------------------------------------------------- */
+
+.siteedit__slugrow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.siteedit__slugrow:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.siteedit__slugbase {
+  display: grid;
+  place-items: center;
+  padding-inline: var(--space-3);
+  background: var(--surface-2);
+  border-right: 1px solid var(--rule);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* The wrapper draws the border and the focus ring, so the input
+   inside it must not draw a second set. */
+.siteedit__sluginput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+}
+
+.siteedit__sluginput:focus-visible { outline: none; }
+
+.siteedit__slugstatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: 28px;
+}
+
+.siteedit__slugok,
+.siteedit__slugmuted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.siteedit__slugok { color: var(--correct); }
+.siteedit__slugmuted { color: var(--ink-muted); }
+
+.siteedit__urlrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.siteedit__url {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.siteedit__url:hover { text-decoration: underline; }
+
+.siteedit__switchrow,
+.siteedit__confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.siteedit__confirm { margin-top: var(--space-3); }
+
+.siteedit__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.siteedit__stats dt {
+  color: var(--ink-muted);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.siteedit__stats dd {
+  margin: 2px 0 0;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.siteedit__statcap {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------
+   PREVIEW
+   --------------------------------------------------------- */
+
+.siteedit__previewcol {
+  display: grid;
+  gap: var(--space-3);
+  position: sticky;
+  top: var(--space-4);
+}
+
+.siteedit__previewtitle,
+.siteedit__previewactions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.siteedit__open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+
+.siteedit__open:hover { color: var(--accent); }
+
+/*
+ * The window the page is shown through.
+ *
+ * A real scroll container rather than a scaled screenshot, so
+ * sticky rails, viewport-height panes and the dock launcher all
+ * behave as they will in a browser — those are exactly the
+ * things a static preview gets wrong, and three of the four
+ * templates depend on one of them.
+ */
+.siteedit__viewport {
+  height: min(720px, calc(100vh - 220px));
+  height: min(720px, calc(100dvh - 220px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-2);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+
+  /*
+   * Establishes the containing block for the dock's
+   * `position: fixed`, so the portfolio launcher sits in the
+   * corner of the PREVIEW rather than in the corner of the
+   * editor. `transform` is the standard way to do this; it is
+   * the identity transform and paints nothing.
+   */
+  transform: translateZ(0);
+}
+
+.siteedit__viewport--mobile {
+  display: grid;
+  justify-items: center;
+  padding: var(--space-4);
+}
+
+.siteedit__viewport--mobile .siteedit__frame {
+  width: 390px;
+  max-width: 100%;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.siteedit__frame { min-height: 100%; }
+
+/*
+ * The preview is inert, so nothing inside it takes focus.
+ *
+ * A student tabbing through the editor should not walk into a
+ * copy of their own page and out the other side — and the
+ * chat in there does not answer anyway. `inert` also blocks
+ * clicks, which is why the width toggle lives outside it.
+ */
+.siteedit__frame[inert] { cursor: default; }
+
+.siteedit__previewnote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+
+/* ---------------------------------------------------------
+   SAVE BAR
+
+   Fixed, and only present when there is something to save —
+   the same rule the Builder's SaveBar follows.
+   --------------------------------------------------------- */
+
+.siteedit__savebar {
+  position: fixed;
+  left: var(--rail-width);
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface-1);
+  border-top: 1px solid var(--rule);
+  box-shadow: var(--shadow-lg);
+}
+
+.siteedit__savemsg {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.siteedit__saveerror { color: var(--error); }
+
+/* ---------------------------------------------------------
+   NARROW
+
+   Below the split's minimum the two halves stack, and the
+   preview stops being sticky — two sticky columns in one
+   scrolling page is a fight neither wins.
+   --------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .siteedit__split { grid-template-columns: 1fr; }
+
+  .siteedit__controls,
+  .siteedit__previewcol {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .siteedit__viewport { height: 620px; }
+}
+
+@media (max-width: 860px) {
+  .siteedit__savebar { left: 0; bottom: var(--tabbar-height); }
+
+  .siteedit__templates { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .siteedit__savebar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .siteedit__palettes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .siteedit__stats { grid-template-columns: 1fr; }
+}

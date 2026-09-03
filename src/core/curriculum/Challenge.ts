@@ -3,6 +3,13 @@ export type Difficulty =
   | "Intermediate"
   | "Advanced";
 
+export type ChallengeType =
+  | "multiple-choice"
+  | "prompt-building"
+  | "prompt-fixing"
+  | "scenario"
+  | "free-response";
+
 export interface Challenge {
   id: string;
 
@@ -12,9 +19,20 @@ export interface Challenge {
 
   difficulty: Difficulty;
 
+  type: ChallengeType;
+
   conceptIds: string[];
 
-  starterCode: string;
+  options?: {
+    id: string;
+    text: string;
+  }[];
 
-  solution: string;
+  correctAnswer?: string;
+
+  sampleAnswer?: string;
+
+  hints?: string[];
+
+  explanation?: string;
 }

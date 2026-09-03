@@ -1,5 +1,5 @@
 {
-  "name": "neurocode",
+  "name": "neurolink",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,14 +7,26 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.112.2",
+    "katex": "^0.18.4",
+    "lucide-react": "^1.34.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.2",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

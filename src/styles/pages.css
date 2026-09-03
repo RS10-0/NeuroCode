@@ -1,0 +1,577 @@
+/* =========================================================
+   BUILDGENTIC — PAGE LAYOUTS
+   ========================================================= */
+
+/* =========================================================
+   AUTH
+   ========================================================= */
+
+.auth {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
+  background: var(--canvas);
+}
+
+.auth__inner {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  margin-bottom: var(--space-7);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.auth__brand-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius-sm);
+}
+
+.auth__brand-word {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+}
+
+.auth__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+.auth__lede {
+  font-size: var(--text-base);
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.auth__password-wrap {
+  position: relative;
+}
+
+.auth__password-toggle {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.auth__footer {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+/* =========================================================
+   LANDING
+   ========================================================= */
+
+.landing {
+  background: var(--canvas);
+}
+
+.landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-6);
+}
+
+.landing__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.landing__hero {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-6);
+}
+
+.landing__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.landing__headline {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-4xl));
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  max-width: 18ch;
+  margin-bottom: var(--space-5);
+}
+
+.landing__sub {
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+  max-width: var(--measure-narrow);
+  margin-bottom: var(--space-6);
+}
+
+.landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* The product loop, rendered as the sequence it actually is. */
+
+.loop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.loop__step {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-muted);
+}
+
+.loop__step--strong {
+  color: var(--accent);
+}
+
+.loop__arrow {
+  color: var(--rule-strong);
+}
+
+.landing__section {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.landing__section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+.landing__section-lede {
+  font-size: var(--text-base);
+  color: var(--ink-secondary);
+  max-width: var(--measure);
+  margin-bottom: var(--space-6);
+}
+
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-4);
+}
+
+.pillar__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: var(--space-4);
+
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.pillar__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+.pillar__text {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+}
+
+.landing__foot {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+@media (max-width: 860px) {
+  .landing__nav,
+  .landing__hero,
+  .landing__section,
+  .landing__foot {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .landing__hero {
+    padding-top: var(--space-7);
+    padding-bottom: var(--space-7);
+  }
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+
+.dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.dash__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.stat {
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.stat__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: var(--space-2);
+}
+
+.stat__label {
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+/* The pick-up-where-you-left-off card. */
+
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+}
+
+.resume__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  color: var(--ink);
+}
+
+.resume__text {
+  font-size: var(--text-base);
+  color: var(--ink-secondary);
+  max-width: var(--measure);
+}
+
+@media (max-width: 1040px) {
+  .dash {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =========================================================
+   COURSE MAP
+   ========================================================= */
+
+.lesson-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-1);
+}
+
+.lesson-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--rule);
+
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+  width: 100%;
+
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.lesson-row:last-child {
+  border-bottom: none;
+}
+
+.lesson-row:hover:not(.lesson-row--locked) {
+  background: var(--surface-2);
+}
+
+.lesson-row--locked {
+  cursor: not-allowed;
+}
+
+.lesson-row--locked .lesson-row__title,
+.lesson-row--locked .lesson-row__sub {
+  color: var(--ink-muted);
+}
+
+.lesson-row__index {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--rule-strong);
+
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.lesson-row__index--done {
+  background: var(--correct-bg);
+  border-color: var(--correct-rule);
+  color: var(--correct);
+}
+
+.lesson-row__index--current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.lesson-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-row__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.lesson-row__sub {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-row__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .lesson-row {
+    padding: var(--space-4);
+  }
+
+  .lesson-row__sub {
+    display: none;
+  }
+}
+
+
+/* =========================================================
+   COURSE LIBRARY
+
+   The grid of course cards behind the Courses nav item.
+   Shipped courses are links; the ones that are not built yet
+   are inert and say so, rather than looking broken.
+   ========================================================= */
+
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.course-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+
+  color: inherit;
+  text-decoration: none;
+
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+a.course-card:hover {
+  border-color: var(--rule-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+a.course-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.course-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.course-card__mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-rule);
+  border-radius: var(--radius-full);
+}
+
+.course-card__mark--soon {
+  color: var(--ink-muted);
+  background: var(--surface-inset);
+  border-color: var(--rule);
+}
+
+.course-card__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-snug);
+  color: var(--ink);
+}
+
+.course-card__text {
+  flex: 1;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+.course-card__foot {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.course-card__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/*
+   Unavailable courses read as deliberately quiet rather than
+   as a rendering failure: same structure, less contrast, and a
+   cursor that never promises a click.
+*/
+.course-card--soon {
+  background: var(--surface-2);
+  border-style: dashed;
+  cursor: default;
+}
+
+.course-card--soon .course-card__title {
+  color: var(--ink-secondary);
+}
+
+.course-card--soon .course-card__text {
+  color: var(--ink-muted);
+}
+
+@media (max-width: 640px) {
+  .course-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .course-card {
+    padding: var(--space-4);
+  }
+}

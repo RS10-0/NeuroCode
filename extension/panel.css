@@ -1,0 +1,326 @@
+/*
+ * The side panel.
+ *
+ * Its own stylesheet rather than the app's: a side panel is
+ * ~360px wide and the app's tokens are tuned for a page. What
+ * is shared is the palette, restated here rather than imported,
+ * because an extension cannot reach the app's CSS and a build
+ * step to copy it would be a build step to keep in sync.
+ *
+ * Follows the browser's colour scheme. A panel is docked beside
+ * whatever site somebody is on, so it should look like part of
+ * the browser rather than like a page.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --canvas: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f4f1ea;
+  --rule: #e6e2d9;
+  --ink: #171512;
+  --ink-muted: #6b665c;
+  --accent: #25457a;
+  --accent-bg: #e8edf6;
+  --error: #8a2f24;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #17161a;
+    --surface: #1e1d22;
+    --surface-2: #26252b;
+    --rule: #34323a;
+    --ink: #f2f0ec;
+    --ink-muted: #a09a90;
+    --accent: #9ab6e8;
+    --accent-bg: #232a38;
+    --error: #e8a196;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.panel__lede {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.panel__note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.panel__error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg);
+  color: var(--error);
+  font-size: 13px;
+}
+
+.panel__error[hidden],
+.panel__note[hidden] {
+  display: none;
+}
+
+/* ---------------------------------------------------------
+   HEAD
+   --------------------------------------------------------- */
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.iconbtn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.iconbtn:hover {
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------
+   THE LOG
+   --------------------------------------------------------- */
+
+.log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  max-width: 100%;
+}
+
+.msg--user {
+  align-self: flex-end;
+  background: var(--accent-bg);
+}
+
+.msg--assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+
+.msg__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The chip saying a page was read.
+ *
+ * On the message it belongs to rather than in a status bar,
+ * because "which of my questions carried the page" is the thing
+ * somebody actually wants to know when scrolling back — and
+ * because a turn that read a page and a turn that did not
+ * should not look identical afterwards.
+ */
+.msg__page {
+  font-size: 11px;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------
+   PAGE CONTROLS
+   --------------------------------------------------------- */
+
+.pagerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagerow[hidden] {
+  display: none;
+}
+
+.pagerow__label {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.seg__opt {
+  padding: 4px 9px;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg__opt + .seg__opt {
+  border-left: 1px solid var(--rule);
+}
+
+.seg__opt.is-on {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   COMPOSER
+   --------------------------------------------------------- */
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.composer__input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.btn {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.panel__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Focus has to be visible: this panel is keyboard-driven more
+   than most, because it sits beside something else somebody is
+   already reading. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

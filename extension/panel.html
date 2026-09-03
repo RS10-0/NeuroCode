@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BuildGentic</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <!--
+      THE PANEL IS A DOCUMENT, NOT THE SERVICE WORKER, and that
+      is where the chat request lives. MV3 kills an idle worker
+      after about thirty seconds; a turn can run for longer than
+      that, and this page is alive for as long as somebody has
+      the panel open.
+    -->
+    <main id="app" class="panel">
+      <!-- Not signed in yet. -->
+      <section id="view-pair" class="view" hidden>
+        <h1 class="panel__title">Connect this browser</h1>
+        <p class="panel__lede">
+          Talk to your own agents while you are on any website. You are
+          already signed in on BuildGentic — this only needs your
+          confirmation.
+        </p>
+        <button id="pair" class="btn btn--primary" type="button">
+          Connect on BuildGentic
+        </button>
+        <p class="panel__note">
+          It opens a tab and explains exactly what this can and cannot do
+          before anything is connected.
+        </p>
+      </section>
+
+      <!-- Paired, but the owner has switched no agents on. -->
+      <section id="view-empty" class="view" hidden>
+        <h1 class="panel__title">No agents here yet</h1>
+        <p class="panel__lede">
+          Connecting this browser does not switch any agent on — that is
+          deliberate. Open an agent on BuildGentic, go to
+          <strong>Deploy</strong>, and turn on
+          <em>Show in the side panel</em>.
+        </p>
+        <button id="refresh" class="btn" type="button">Check again</button>
+      </section>
+
+      <!-- The chat. -->
+      <section id="view-chat" class="view" hidden>
+        <header class="panel__head">
+          <label class="sr-only" for="agent">Agent</label>
+          <select id="agent" class="agent"></select>
+          <button
+            id="clear"
+            class="iconbtn"
+            type="button"
+            title="Start a new conversation"
+            aria-label="Start a new conversation"
+          >
+            &#10227;
+          </button>
+        </header>
+
+        <div id="log" class="log" role="log" aria-live="polite"></div>
+
+        <div id="page-controls" class="pagerow" hidden>
+          <span class="pagerow__label">Include:</span>
+          <div class="seg" role="radiogroup" aria-label="What to include from this page">
+            <button class="seg__opt is-on" type="button" data-mode="none" role="radio" aria-checked="true">
+              Nothing
+            </button>
+            <button class="seg__opt" type="button" data-mode="selection" role="radio" aria-checked="false">
+              Selection
+            </button>
+            <button class="seg__opt" type="button" data-mode="page" role="radio" aria-checked="false">
+              This page
+            </button>
+          </div>
+        </div>
+
+        <p id="page-blocked" class="panel__note" hidden></p>
+
+        <form id="composer" class="composer">
+          <label class="sr-only" for="prompt">Your message</label>
+          <textarea
+            id="prompt"
+            class="composer__input"
+            rows="2"
+            placeholder="Ask your agent…"
+          ></textarea>
+          <button id="send" class="btn btn--primary" type="submit">Ask</button>
+        </form>
+
+        <p id="error" class="panel__error" hidden></p>
+
+        <footer class="panel__foot">
+          <button id="signout" class="linkbtn" type="button">
+            Forget this browser
+          </button>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

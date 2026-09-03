@@ -1,0 +1,260 @@
+/* =========================================================
+   BUILDGENTIC — DESIGN TOKENS
+
+   One surface: editorial paper, everywhere.
+
+   There used to be a second, near-black "build" console
+   surface behind the AI Lab and the agent pages. It made two
+   destinations look like a different product from the other
+   three, so it is gone — cream is the whole application now.
+   Lab and My Agents get their identity from components,
+   accents and icons instead of from a different background.
+
+   This is not a light theme awaiting a dark one. Component CSS
+   reads ONLY the semantic names below, so if a second surface
+   is ever wanted, it is a token block and nothing else.
+   ========================================================= */
+
+:root {
+  /* ---------------------------------------------------------
+     TYPEFACES
+
+     Each family has exactly one job. Nothing on screen is
+     unassigned.
+     --------------------------------------------------------- */
+
+  --font-display:
+    "Fraunces Variable",
+    Fraunces,
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  --font-sans:
+    "Inter Variable",
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+
+  --font-mono:
+    "JetBrains Mono Variable",
+    "JetBrains Mono",
+    ui-monospace,
+    "Cascadia Mono",
+    Menlo,
+    monospace;
+
+  /* ---------------------------------------------------------
+     TYPE SCALE — 1.25 (major third), 16px base
+     --------------------------------------------------------- */
+
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 31px;
+  --text-3xl: 39px;
+  --text-4xl: 49px;
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-body: 1.65;
+
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ---------------------------------------------------------
+     SPACE — 4pt base, 8pt rhythm
+     --------------------------------------------------------- */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* ---------------------------------------------------------
+     MEASURE
+
+     Prose never runs wider than this. Non-negotiable — it is
+     most of the difference between "professional" and "a wall
+     of text at 1440px".
+     --------------------------------------------------------- */
+
+  --measure: 68ch;
+  --measure-narrow: 52ch;
+  --measure-wide: 96ch;
+
+  /* ---------------------------------------------------------
+     RADIUS
+     --------------------------------------------------------- */
+
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* ---------------------------------------------------------
+     MOTION
+     --------------------------------------------------------- */
+
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------------------------------------------------------
+     LAYOUT CONSTANTS
+     --------------------------------------------------------- */
+
+  --rail-width: 232px;
+  --rail-width-collapsed: 72px;
+  --tabbar-height: 60px;
+  --lesson-bar-height: 56px;
+
+  --z-rail: 20;
+  --z-sticky: 30;
+  --z-tabbar: 40;
+  --z-overlay: 50;
+  --z-dialog: 60;
+  --z-toast: 70;
+}
+
+/* =========================================================
+   THE LAB'S PALETTE
+
+   Warm alabaster. A research workspace rather than a console.
+
+   Scoped to a class, not to a surface attribute on <html>, and
+   the distinction matters. The Lab is a workspace inside
+   BuildGentic rather than a second application: the global rail
+   stays exactly as it looks everywhere else, and only the Lab's
+   own content area warms up. Re-declaring the same semantic
+   names on a wrapper is all it takes, because every component
+   stylesheet reads the names rather than the values.
+
+   The palette is a shade warmer and lower-contrast than Learn:
+   less white to stare into, and no saturated accent competing
+   with the model's own output for attention.
+   ========================================================= */
+
+.labsurface {
+  /* Alabaster page, cream cards. The two are only three steps
+     apart — a card is meant to read as a slightly raised piece
+     of the same paper, not as a white box dropped onto beige. */
+  --canvas: #fbf9f5;
+  --surface-1: #fffdf9;
+  --surface-2: #f5f1e8;
+  --surface-inset: #f0ebe0;
+
+  --rule: #ebe6dd;
+  --rule-strong: #ddd6c9;
+
+  --ink: #1c1a17;
+  --ink-secondary: #666057;
+  --ink-muted: #918a7d;
+
+  /*
+   * Sage rather than blue.
+   *
+   * The highlight tint is fixed by the brief at #e6ede4, and a
+   * blue accent above a green tint reads as two unrelated
+   * decisions. The ink is a deep forest of the same family:
+   * dark enough to carry white text at 5.9:1, quiet enough that
+   * a page full of controls does not shout.
+   */
+  --accent: #38553f;
+  --accent-hover: #2a4231;
+  --accent-bg: #e6ede4;
+  --accent-rule: #c2d2bd;
+  --on-accent: #fffdf9;
+
+  --correct: #3f6349;
+  --correct-bg: #e6ede4;
+  --correct-rule: #c2d2bd;
+
+  --caution: #856225;
+  --caution-bg: #f7efdf;
+  --caution-rule: #ddc99d;
+
+  --error: #8d3a33;
+  --error-bg: #f6e7e5;
+  --error-rule: #dfb4ae;
+
+  /*
+   * Barely there.
+   *
+   * Depth on this surface comes from the border and the paper
+   * shift, not from a drop shadow. Anything heavier turns a
+   * calm page into a stack of floating cards.
+   */
+  --shadow-sm: 0 1px 1px rgba(28, 26, 23, 0.03);
+  --shadow-md: 0 1px 2px rgba(28, 26, 23, 0.04), 0 6px 16px -12px rgba(28, 26, 23, 0.14);
+  --shadow-lg: 0 12px 40px -20px rgba(28, 26, 23, 0.22);
+
+  /* The Lab's own frame. */
+  --labside-width: 344px;
+}
+
+/* =========================================================
+   SURFACE — LEARN
+
+   Warm paper. Reading happens here.
+   ========================================================= */
+
+[data-surface="learn"] {
+  --canvas: #fbfaf7;
+  --surface-1: #ffffff;
+  --surface-2: #f4f1ea;
+  --surface-inset: #efebe1;
+
+  --rule: #e6e2d9;
+  --rule-strong: #d8d2c5;
+
+  --ink: #171512;
+  --ink-secondary: #4a453c;
+  --ink-muted: #8a8478;
+
+  --accent: #25457a;
+  --accent-hover: #1b355f;
+  --accent-bg: #e8edf6;
+  --accent-rule: #b9c6dd;
+  --on-accent: #ffffff;
+
+  --correct: #2c6e4f;
+  --correct-bg: #e4f0e9;
+  --correct-rule: #a8ceba;
+
+  --caution: #8a5a18;
+  --caution-bg: #f6eedf;
+  --caution-rule: #ddc79b;
+
+  --error: #9b3232;
+  --error-bg: #f7e8e8;
+  --error-rule: #e0b3b3;
+
+  --shadow-sm: 0 1px 2px rgba(23, 21, 18, 0.05);
+  --shadow-md: 0 2px 8px rgba(23, 21, 18, 0.07);
+  --shadow-lg: 0 8px 28px rgba(23, 21, 18, 0.1);
+
+  color-scheme: light;
+}
