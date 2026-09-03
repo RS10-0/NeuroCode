@@ -166,3 +166,14 @@ applied, so their contents are historical record.
 
 When rebranding again, replace case-sensitively and treat lowercase
 `neurolink` as load-bearing until proven otherwise.
+
+## Deploying
+
+The frontend deploys to Vercel (`vercel.json`) and the backend to Render
+(`render.yaml`), with Supabase unchanged as the database and auth layer.
+Neither config file carries a secret — every credential is entered by hand
+in that platform's dashboard. See
+[`docs/deployment.md`](docs/deployment.md) for the full checklist: exactly
+which environment variables go where, the DNS records for
+`buildgentic.com` and `api.buildgentic.com`, and what to verify once it's
+live.

@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: buildgentic-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      # Supabase, service role — set the real values in the Render
+      # dashboard. Never stored here.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      # CORS: exactly the production frontend origin. Leaving this
+      # unset does not fail open — server/src/index.ts only widens
+      # the allowlist to localhost when it is empty, so a forgotten
+      # value here means every browser request is refused, not
+      # accepted.
+      - key: NEUROLINK_ALLOWED_ORIGINS
+        value: https://buildgentic.com
+      # What a deployed agent's endpoint and a published page print
+      # as their own address. See server/.env.example for the full
+      # explanation of why these are two different values.
+      - key: NEUROLINK_PUBLIC_API_URL
+        value: https://api.buildgentic.com
+      - key: NEUROLINK_PUBLIC_SITE_URL
+        value: https://buildgentic.com
+      # Model provider keys, search keys, email keys, and every
+      # NEUROLINK_* tuning variable are intentionally not declared
+      # here: each already has a working default in
+      # server/src/ai/config.ts (the app runs on the Mock provider
+      # with none set), so an empty placeholder here would be one
+      # more thing to remember to fill in rather than a help. Add
+      # the ones a real deploy needs directly in the Render
+      # dashboard — see docs/deployment.md for the list.
