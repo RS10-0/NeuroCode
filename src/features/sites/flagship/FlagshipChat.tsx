@@ -51,6 +51,17 @@ export interface FlagshipChatProps {
      the server from the owner's switch, the agent's status and
      its capabilities — see `chatLive` in publicApi. */
   live: boolean;
+  /*
+   * True when the server has no model configured and every
+   * reply is coming from the offline stand-in.
+   *
+   * Drawn on an explicit `true` only, and on a flagship it
+   * matters most: these five pages are the ones that look most
+   * like a finished product, so a fixed paragraph coming back
+   * from one reads as the product being bad rather than as the
+   * server being unconfigured.
+   */
+  offline?: boolean;
   /* One of five, and only a CSS hook. No behaviour branches on
      it, which is what keeps the five from drifting apart. */
   variant: "desk" | "path" | "room" | "bench" | "study";
@@ -105,6 +116,7 @@ export default function FlagshipChat({
   slug,
   identity,
   live,
+  offline,
   variant,
   head,
   opening,
@@ -217,6 +229,17 @@ export default function FlagshipChat({
       {head ?? (
         <DefaultHead identity={identity} status={busy ? "thinking" : "ready"} />
       )}
+
+      {/* Above the log, for the reason the generic chat puts it
+          there: it should be read before a question is asked,
+          not after one is answered. */}
+      {offline === true ? (
+        <p className="fsc__notice">
+          This agent is not really answering right now. The site it runs on
+          has no AI model connected, so anything below is placeholder text
+          rather than a reply written for your question.
+        </p>
+      ) : null}
 
       <div
         className="fsc__log"

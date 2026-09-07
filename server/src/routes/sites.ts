@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Response } from "express";
 
 import { runChat } from "../ai/AiRuntime";
+import { chainCandidates } from "../ai/resolveChain";
 import { siteLimits } from "../ai/config";
 import { subjectFor } from "../agents/memory/scope";
 import { resolveSite } from "../sites/SiteStore";
@@ -116,6 +117,33 @@ sitesRouter.get("/:slug", async (req, res) => {
             : undefined,
       },
       chatLive: resolved.chatLive,
+      /*
+       * Whether the only thing that can answer is the offline
+       * stand-in.
+       *
+       * One boolean, and deliberately nothing else. The rest of
+       * this response is shaped by the rule at the top of
+       * publicApi.ts — no provider, no model name, no key, no
+       * identifier — and this does not loosen it: it says that
+       * something is wrong, not what, and a visitor learns
+       * strictly less from it than from reading two replies and
+       * noticing they are the same four paragraphs.
+       *
+       * Published because the reader here has the least context
+       * of anyone. A learner in the Lab at least knows what
+       * BuildGentic is; a stranger who followed a link to
+       * somebody's Study Tutor and got a paragraph about prompt
+       * writing has no way at all to tell that no model was
+       * consulted.
+       *
+       * Read from the platform cascade rather than from a
+       * user's power source, because there is no user here —
+       * `chainCandidates` falls back to the mock exactly when
+       * the runtime would.
+       */
+      offline: chainCandidates().every(
+        (candidate) => candidate.providerId === "mock"
+      ),
     });
   } catch (error) {
     sendError(res, error);

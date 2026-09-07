@@ -368,6 +368,20 @@
   text-transform: uppercase;
 }
 
+/* Same notice as `.sitenotice` on the generic pages, in the
+   flagship's own tokens. A separate rule rather than a shared
+   class because these five pages set their own palette and
+   typography and share no scope with the templates. */
+.fsc__notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
 .fsc__log {
   flex: 1;
   min-height: 0;

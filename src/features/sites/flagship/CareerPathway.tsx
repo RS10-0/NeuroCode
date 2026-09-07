@@ -104,6 +104,7 @@ export default function CareerPathway({
   slug,
   identity,
   live,
+  offline,
 }: FlagshipLayoutProps) {
   const [stage, setStage] = useState<Stage | null>(null);
   const [ask, setAsk] = useState<{ text: string; id: number } | undefined>();
@@ -171,6 +172,7 @@ export default function CareerPathway({
               slug={slug}
               identity={identity}
               live={live}
+              offline={offline}
               variant="path"
               ask={ask}
               prompts={OPENERS}

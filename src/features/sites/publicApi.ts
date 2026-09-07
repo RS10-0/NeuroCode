@@ -62,6 +62,17 @@ export interface PublicSite {
    * that will only ever return an error.
    */
   chatLive: boolean;
+  /*
+   * True when the server has no model provider configured and
+   * every reply is coming from the offline stand-in.
+   *
+   * Optional, and acted on only when explicitly `true`. A page
+   * served by a build older than this field reads as
+   * `undefined`, which must stay silent — treating a missing
+   * field as `false` would quietly promise a visitor that a
+   * real model answered.
+   */
+  offline?: boolean;
 }
 
 export type PublicSiteResult =

@@ -19,6 +19,7 @@ export default function AssistantTemplate({
   config,
   agent,
   chatLive,
+  offline,
 }: TemplateProps) {
   return (
     <>
@@ -46,6 +47,7 @@ export default function AssistantTemplate({
               agent={agent}
               config={config.chat}
               live={chatLive}
+              offline={offline}
             />
           </div>
         ) : null}

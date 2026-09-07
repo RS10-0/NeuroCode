@@ -28,6 +28,7 @@ export default function StudyTemplate({
   config,
   agent,
   chatLive,
+  offline,
 }: TemplateProps) {
   /*
    * A prompt in the rail has to reach the conversation, which
@@ -91,6 +92,7 @@ export default function StudyTemplate({
                 agent={agent}
                 config={config.chat}
                 live={chatLive}
+                offline={offline}
                 ask={ask}
                 hidePrompts
               />

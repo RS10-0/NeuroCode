@@ -105,6 +105,7 @@ export default function ReadingRoom({
   slug,
   identity,
   live,
+  offline,
 }: FlagshipLayoutProps) {
   const [ask, setAsk] = useState<{ text: string; id: number } | undefined>();
 
@@ -205,6 +206,7 @@ export default function ReadingRoom({
                 slug={slug}
                 identity={identity}
                 live={live}
+                offline={offline}
                 variant="room"
                 ask={ask}
                 prompts={ENQUIRIES}

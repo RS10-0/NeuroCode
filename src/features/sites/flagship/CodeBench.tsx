@@ -63,6 +63,7 @@ export default function CodeBench({
   slug,
   identity,
   live,
+  offline,
 }: FlagshipLayoutProps) {
   const [tab, setTab] = useState<TabId>("brief");
 
@@ -177,6 +178,7 @@ export default function CodeBench({
                 slug={slug}
                 identity={identity}
                 live={live}
+                offline={offline}
                 variant="bench"
                 prompts={COMMANDS}
                 head={

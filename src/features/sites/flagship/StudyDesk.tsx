@@ -146,6 +146,7 @@ export default function StudyDesk({
   slug,
   identity,
   live,
+  offline,
 }: FlagshipLayoutProps) {
   const [mode, setMode] = useState<ModeId>("explain");
   const [done, setDone] = useState<string[]>([]);
@@ -242,6 +243,7 @@ export default function StudyDesk({
               slug={slug}
               identity={identity}
               live={live}
+              offline={offline}
               variant="study"
               ask={ask}
               /*

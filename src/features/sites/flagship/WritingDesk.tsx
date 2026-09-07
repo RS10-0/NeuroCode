@@ -97,6 +97,7 @@ export default function WritingDesk({
   slug,
   identity,
   live,
+  offline,
 }: FlagshipLayoutProps) {
   /* Null is a real state and the default one: most people
      paste a draft and ask a question in their own words. */
@@ -154,6 +155,7 @@ export default function WritingDesk({
               slug={slug}
               identity={identity}
               live={live}
+              offline={offline}
               variant="desk"
               prefix={pass?.directive}
               prompts={OPENERS}

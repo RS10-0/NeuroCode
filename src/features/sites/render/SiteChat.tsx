@@ -45,6 +45,16 @@ export interface SiteChatProps {
   /* Whether the agent will actually answer. Distinct from the
      student's own on/off switch — see `chatLive` in publicApi. */
   live: boolean;
+  /*
+   * True when the server has no model configured and every
+   * reply is coming from the offline stand-in.
+   *
+   * Drawn on an explicit `true` only. A visitor here has less
+   * context than anyone — they followed a link, they have no
+   * account, and four fixed paragraphs read exactly like an
+   * agent that answered badly.
+   */
+  offline?: boolean;
   /* Prompts are listed in the study template's rail instead of
      inside the chat, so it suppresses them here. */
   hidePrompts?: boolean;
@@ -71,6 +81,7 @@ export default function SiteChat({
   agent,
   config,
   live,
+  offline,
   hidePrompts,
   ask,
 }: SiteChatProps) {
@@ -191,6 +202,18 @@ export default function SiteChat({
   return (
     <div className="sitechat">
       <ChatHead agent={agent} status={busy ? "thinking" : "ready"} />
+
+      {/* Above the transcript, so it is read before a question is
+          asked rather than after one is answered. Says what the
+          visitor needs to conclude and nothing about the server:
+          they cannot fix it, and it is not theirs to know. */}
+      {offline === true ? (
+        <p className="sitenotice">
+          This agent is not really answering right now. The site it runs on
+          has no AI model connected, so anything below is placeholder text
+          rather than a reply written for your question.
+        </p>
+      ) : null}
 
       <div
         className="sitechat__log"

@@ -31,6 +31,8 @@ export interface TemplateProps {
   config: SiteConfig;
   agent: PublicAgentFace;
   chatLive: boolean;
+  /* True only when the server said so. See PublicSite.offline. */
+  offline: boolean;
 }
 
 export interface SiteRendererProps {
@@ -95,6 +97,14 @@ export default function SiteRenderer({ site, preview }: SiteRendererProps) {
     config,
     agent: site.agent,
     chatLive: preview ? false : site.chatLive,
+    /*
+     * Normalised to a real boolean here so the templates below
+     * cannot accidentally treat `undefined` as anything. The
+     * editor's preview never shows it: its chat is not live in
+     * the first place, and the Builder it sits inside already
+     * carries the same warning.
+     */
+    offline: preview ? false : site.offline === true,
   };
 
   return (

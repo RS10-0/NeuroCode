@@ -806,6 +806,25 @@
 
 .sitechat__send:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/*
+ * "Nothing here is real."
+ *
+ * Shown only when the server reports that every reply is coming
+ * from the offline stand-in. Built entirely from the page's own
+ * palette tokens, so it reads as part of whatever the student
+ * chose in all twelve palette/mode combinations rather than as
+ * a piece of application chrome dropped onto their design.
+ */
+.sitenotice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
 .sitechat__offline {
   padding: var(--space-5);
   text-align: center;

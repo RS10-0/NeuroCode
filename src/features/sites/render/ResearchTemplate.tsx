@@ -23,6 +23,7 @@ export default function ResearchTemplate({
   config,
   agent,
   chatLive,
+  offline,
 }: TemplateProps) {
   const titled = config.sections.filter((section) => section.title);
 
@@ -70,6 +71,7 @@ export default function ResearchTemplate({
                 agent={agent}
                 config={config.chat}
                 live={chatLive}
+                offline={offline}
               />
             </div>
           ) : null}

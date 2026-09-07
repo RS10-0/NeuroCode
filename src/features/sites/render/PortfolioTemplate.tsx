@@ -29,6 +29,7 @@ export default function PortfolioTemplate({
   config,
   agent,
   chatLive,
+  offline,
 }: TemplateProps) {
   const [open, setOpen] = useState(false);
 
@@ -81,6 +82,7 @@ export default function PortfolioTemplate({
                 agent={agent}
                 config={config.chat}
                 live={chatLive}
+                offline={offline}
               />
             </div>
           ) : null}

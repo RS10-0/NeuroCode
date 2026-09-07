@@ -54,6 +54,9 @@ export interface FlagshipLayoutProps {
      the server. Layouts disable their own send affordances on
      this as well as passing it down. */
   live: boolean;
+  /* True only when the server said every reply is coming from
+     the offline stand-in. See PublicSite.offline. */
+  offline: boolean;
 }
 
 export interface FlagshipSiteProps {
@@ -83,6 +86,10 @@ export default function FlagshipSite({ site, preview }: FlagshipSiteProps) {
     agent: site.agent,
     identity,
     live: preview ? false : site.chatLive,
+    /* Normalised here, for the reason SiteRenderer normalises
+       it: no layout below should have to decide what an absent
+       field means. */
+    offline: preview ? false : site.offline === true,
   };
 
   return (
