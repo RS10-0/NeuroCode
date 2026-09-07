@@ -7,7 +7,6 @@ import {
   FlaskConical,
   Globe,
   GraduationCap,
-  Quote,
   Rocket,
   Sparkles,
 } from "lucide-react";
@@ -15,7 +14,7 @@ import {
 import BrandMark from "../components/BrandMark";
 import SiteFooter from "../components/SiteFooter";
 import { useSurface } from "../components/Surface";
-import { Avatar, Badge, Button, Card } from "../components/ui";
+import { Badge, Button, Card } from "../components/ui";
 import { COURSE_CATALOG } from "../features/courses/catalog";
 
 /* The product loop, stated plainly rather than described. */
@@ -67,32 +66,6 @@ const PILLARS: {
    invented — this is what the mockup on the right is actually
    showing a preview of. */
 const BUILDER_NAV = ["Identity", "Model", "Knowledge", "Actions"];
-
-/*
- * Placeholder marketing copy — no real learners quoted yet.
- * First names and descriptors only, deliberately generic.
- * Swap for real quotes before this ships.
- */
-const TESTIMONIALS = [
-  {
-    quote:
-      "I'd never written a line of code. Three weeks in, I had an agent that people I don't know were actually using.",
-    name: "Priya",
-    role: "self-taught, shipped a study-planner agent",
-  },
-  {
-    quote:
-      "The Lab is the first place an explanation of prompting actually stuck — I could see exactly why my version failed.",
-    name: "Owen",
-    role: "computer science student",
-  },
-  {
-    quote:
-      "I've built dashboards for years. This is the first course that treated 'ship it and watch someone use it' as the finish line.",
-    name: "Dana",
-    role: "product manager",
-  },
-];
 
 export default function Landing() {
   useSurface("learn");
@@ -179,22 +152,6 @@ export default function Landing() {
                 I have an account
               </Button>
             </Link>
-          </div>
-
-          <div className="trust">
-            <div className="trust__stack" aria-hidden="true">
-              {TESTIMONIALS.concat(TESTIMONIALS[0]).map((person, index) => (
-                <Avatar
-                  key={`${person.name}-${index}`}
-                  name={person.name}
-                  size="sm"
-                  className="trust__avatar"
-                />
-              ))}
-            </div>
-            <span className="trust__text">
-              Join 1,000+ builders starting from zero
-            </span>
           </div>
         </div>
 
@@ -291,29 +248,6 @@ export default function Landing() {
               <h3 className="curriculum-card__title">{course.title}</h3>
               <p className="curriculum-card__text">{course.description}</p>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing__section" id="testimonials">
-        <h2 className="landing__section-title">Builders, not just learners</h2>
-        <p className="landing__section-lede">
-          Early feedback from people who went through the course.
-        </p>
-
-        <div className="testimonials">
-          {TESTIMONIALS.map(({ quote, name, role }) => (
-            <Card key={name} className="testimonial-card">
-              <Quote size={18} className="testimonial-card__mark" aria-hidden="true" />
-              <p className="testimonial-card__quote">&ldquo;{quote}&rdquo;</p>
-              <div className="testimonial-card__person">
-                <Avatar name={name} size="sm" />
-                <div>
-                  <div className="testimonial-card__name">{name}</div>
-                  <div className="testimonial-card__role">{role}</div>
-                </div>
-              </div>
-            </Card>
           ))}
         </div>
       </section>
