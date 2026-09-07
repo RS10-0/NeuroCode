@@ -702,6 +702,17 @@
   font-style: italic;
 }
 
+.sitechat__waiting {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.sitechat__waiting-slow {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
 .sitechat__caret {
   display: inline-block;
   width: 7px;

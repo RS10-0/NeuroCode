@@ -24,6 +24,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { Button, Callout, IconButton, Textarea } from "../../components/ui";
+import { useSlowRequest } from "../../lib/useSlowRequest";
 import type {
   AiDocumentInfo,
   AiEmailDraftInfo,
@@ -162,6 +163,12 @@ export default function TestPanel({
   const logRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  /* Nothing back yet on the streaming turn is the one moment a
+     cold Render instance looks identical to a hung page. See
+     useSlowRequest for what this does and does not claim to
+     know. */
+  const slow = useSlowRequest(streaming);
+
   /*
    * Anchored to the bottom while text streams, but only when the
    * learner is already there. Yanking the view back down while
@@ -265,6 +272,7 @@ export default function TestPanel({
               turn={turn}
               draft={draft}
               streaming={turn.id === streamingId}
+              slow={turn.id === streamingId && slow}
               onRetry={() => onRetry(config)}
               agentId={agentId}
               canSendEmail={canSendEmail}
@@ -410,6 +418,7 @@ function Turn({
   turn,
   draft,
   streaming,
+  slow,
   onRetry,
   agentId,
   canSendEmail,
@@ -417,6 +426,9 @@ function Turn({
   turn: ChatTurn;
   draft: AgentDraft;
   streaming: boolean;
+  /* Set only on the turn currently streaming, and only once
+     nothing has come back for a while. See useSlowRequest. */
+  slow: boolean;
   onRetry: () => void;
   agentId: string | null;
   canSendEmail: boolean;
@@ -501,7 +513,14 @@ function Turn({
             <ResponseMarkdown source={turn.content} streaming={streaming} />
           </Suspense>
         ) : streaming ? (
-          <span className="turn__caret" aria-hidden="true" />
+          <span className="turn__waiting">
+            <span className="turn__caret" aria-hidden="true" />
+            {slow ? (
+              <span className="turn__waiting-slow">
+                Taking a little longer than usual to respond…
+              </span>
+            ) : null}
+          </span>
         ) : null}
 
         {/* After the answer, because that is when it happened.

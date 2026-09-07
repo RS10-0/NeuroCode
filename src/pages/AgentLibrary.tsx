@@ -13,6 +13,7 @@ import {
   type LibraryAgent,
 } from "../lib/library";
 import { capStateOf } from "../lib/credits";
+import { useSlowRequest } from "../lib/useSlowRequest";
 
 /*
  * The Agent Library — the shop.
@@ -53,6 +54,11 @@ export default function AgentLibrary() {
 
   const [agents, setAgents] = useState<LibraryAgent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /* Still loading past the point a warm backend ever takes —
+     see useSlowRequest for what this does and does not claim
+     to know. */
+  const slow = useSlowRequest(agents === null);
 
   /* Which agent the confirm dialog is about, and which purchase
      is in flight. Separate, because the dialog closes on
@@ -170,15 +176,23 @@ export default function AgentLibrary() {
       ) : null}
 
       {agents === null ? (
-        <ul className="agentgrid">
-          {[0, 1, 2].map((key) => (
-            <li key={key} className="agentcard">
-              <Skeleton width="60%" height="20px" />
-              <Skeleton width="100%" height="32px" />
-              <Skeleton width="40%" height="16px" />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="agentgrid">
+            {[0, 1, 2].map((key) => (
+              <li key={key} className="agentcard">
+                <Skeleton width="60%" height="20px" />
+                <Skeleton width="100%" height="32px" />
+                <Skeleton width="40%" height="16px" />
+              </li>
+            ))}
+          </ul>
+
+          {slow ? (
+            <p className="library__slow">
+              Taking longer than usual to load — hang tight.
+            </p>
+          ) : null}
+        </>
       ) : error ? (
         <Callout tone="error" title="The Agent Library could not be loaded">
           {error}

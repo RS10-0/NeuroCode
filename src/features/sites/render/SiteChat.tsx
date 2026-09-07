@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ArrowUp, Square } from "lucide-react";
 
 import { SiteAvatar } from "./parts";
+import { useSlowRequest } from "../../../lib/useSlowRequest";
 
 /*
  * The same renderer the Lab and the Builder use, not a second
@@ -78,6 +79,21 @@ export default function SiteChat({
 
   const logRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /*
+   * Nothing back yet on the answer in progress — the one moment
+   * a cold Render instance looks identical to a hung page to a
+   * visitor with no context for either. Computed above the
+   * `!live` return below, since a Hook cannot follow one. See
+   * useSlowRequest for what this does and does not claim to
+   * know.
+   */
+  const lastTurn = turns[turns.length - 1];
+  const slow = useSlowRequest(
+    phase === "sending" &&
+      lastTurn?.role === "assistant" &&
+      !lastTurn.content
+  );
 
   /*
    * Follow the answer down, but only when the visitor is
@@ -243,7 +259,15 @@ export default function SiteChat({
                 )}
 
                 {streaming && !turn.content ? (
-                  <span className="sitechat__caret" aria-hidden="true" />
+                  <span className="sitechat__waiting">
+                    <span className="sitechat__caret" aria-hidden="true" />
+                    {slow ? (
+                      <span className="sitechat__waiting-slow">
+                        Still here — first replies can take a little longer
+                        than usual.
+                      </span>
+                    ) : null}
+                  </span>
                 ) : null}
               </div>
             </div>

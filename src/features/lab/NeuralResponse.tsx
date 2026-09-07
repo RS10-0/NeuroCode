@@ -4,6 +4,7 @@ import { Check, Copy, RotateCw, Waves } from "lucide-react";
 
 import { Callout } from "../../components/ui";
 import { describeFinishReason, explainError } from "./explain";
+import { useSlowRequest } from "../../lib/useSlowRequest";
 import type { LabRunState } from "./useLabRun";
 
 /*
@@ -55,6 +56,12 @@ export default function NeuralResponse({
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+
+  /* Nothing back yet at all — not even a first token — is the
+     one moment a cold Render instance is indistinguishable from
+     a hung page. See useSlowRequest for what this does and does
+     not claim to know. */
+  const slow = useSlowRequest(phase === "streaming" && !output);
 
   /*
    * Follow the text down while it streams — but only when the
@@ -140,7 +147,7 @@ export default function NeuralResponse({
         learner reads from the panel changing.
       */}
       <p className="sr-only" role="status">
-        {announcement(state)}
+        {announcement(state, slow)}
       </p>
 
       <div
@@ -177,6 +184,13 @@ export default function NeuralResponse({
           <p className="response__waiting">
             <span className="response__caret" aria-hidden="true" />
             Waiting for the first token…
+            {slow ? (
+              <span className="response__waiting-slow">
+                Taking longer than usual — if BuildGentic hasn't been used in
+                a few minutes, the server needs a moment to wake back up.
+                Still working.
+              </span>
+            ) : null}
           </p>
         ) : phase === "idle" ? (
           <div className="response__empty">
@@ -341,10 +355,16 @@ function Telemetry({
 }
 
 /* What the status region says, and when. */
-function announcement(state: LabRunState): string {
+function announcement(state: LabRunState, slow: boolean): string {
   switch (state.phase) {
     case "streaming":
-      return state.output ? "Generating a response." : "Waiting for the model.";
+      if (state.output) {
+        return "Generating a response.";
+      }
+
+      return slow
+        ? "Still waiting for the model — this is taking longer than usual."
+        : "Waiting for the model.";
 
     case "done":
       return state.done

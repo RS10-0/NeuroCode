@@ -981,6 +981,17 @@
   color: var(--ink-muted);
 }
 
+.turn__waiting {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.turn__waiting-slow {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
 /* The streaming caret. Reduced motion turns it solid rather
    than removing it — it is the only signal that text is still
    coming. */
@@ -2322,6 +2333,13 @@
 .library__balance strong {
   color: var(--ink);
   font-weight: var(--weight-semibold);
+}
+
+.library__slow {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  text-align: center;
 }
 
 .agentcard--official {
