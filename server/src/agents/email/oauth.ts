@@ -118,6 +118,17 @@ export async function beginAuthorization(
     provider: input.provider,
     code_verifier: seal(verifier),
     return_path: safeReturnPath(input.returnPath),
+    /*
+     * What is about to be ASKED for, beside what comes back.
+     *
+     * `user_email_accounts.granted_scopes` records the answer
+     * Google gave. Without this, a mailbox that ends up
+     * read-only is ambiguous between "this server asked for one
+     * scope" and "Google granted one of four" — two problems
+     * with different owners and no way to tell them apart after
+     * the fact. See supabase/migrations/0022.
+     */
+    requested_grants: input.grants,
     expires_at: new Date(Date.now() + STATE_TTL_MS).toISOString(),
   });
 

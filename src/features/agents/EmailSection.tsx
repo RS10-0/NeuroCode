@@ -156,13 +156,36 @@ export default function EmailSection({
   };
 
   const connect = async () => {
+    /*
+     * Refused rather than narrowed, and this is the whole bug
+     * this guard exists for.
+     *
+     * The permissions Google is asked for are derived server
+     * side from the SAVED agent's capabilities. A connect with
+     * no agent id therefore asks for `read` and nothing else —
+     * and what comes back is a mailbox that is permanently
+     * read-only, on an account that is per-user and shared by
+     * every agent afterwards. Nothing says so at the time; the
+     * first sign is a draft failing days later.
+     *
+     * Guarded here as well as in the markup below, so that a
+     * future call site cannot reintroduce it by rendering its
+     * own button.
+     */
+    if (!agentId) {
+      setError(
+        "Save this agent before connecting a mailbox — the permissions Google is asked for come from the capabilities this agent has turned on, and an unsaved agent has none to read."
+      );
+      return;
+    }
+
     setBusy(true);
     setError(null);
 
     try {
       const url = await startEmailConnect({
-        ...(agentId ? { agentId } : {}),
-        returnPath: agentId ? `/agents/${agentId}` : "/agents",
+        agentId,
+        returnPath: `/agents/${agentId}`,
       });
 
       /* A full navigation rather than a popup. Google's consent
@@ -276,16 +299,26 @@ export default function EmailSection({
               text="Connect a Gmail account and your agent can read it, triage it and write replies for you. You sign in with Google — BuildGentic never sees your password, and the agent is never given the key."
             />
 
-            <div className="emailacct__actions">
-              <Button
-                variant="primary"
-                onClick={() => void connect()}
-                disabled={busy}
-                icon={<Mail size={16} />}
-              >
-                Connect Gmail
-              </Button>
-            </div>
+            {agentId ? (
+              <div className="emailacct__actions">
+                <Button
+                  variant="primary"
+                  onClick={() => void connect()}
+                  disabled={busy}
+                  icon={<Mail size={16} />}
+                >
+                  Connect Gmail
+                </Button>
+              </div>
+            ) : (
+              <Callout tone="info" title="Save this agent before connecting">
+                Which permissions Google asks you for is decided by the
+                capabilities this agent has turned on, and an unsaved agent has
+                none for the server to read — so connecting now would get you a
+                mailbox that can only ever be read, whatever you switch on
+                afterwards. Save the agent, then connect.
+              </Callout>
+            )}
           </div>
         ) : null}
 
@@ -355,18 +388,28 @@ export default function EmailSection({
               (draft.capabilities.includes("email_organize") &&
                 !account.grants.includes("organize"))) ? (
               <Callout tone="caution" title="Some permissions were not granted">
-                This agent can do more than the mailbox allows. Reconnect and
-                allow the missing permissions, or turn those capabilities off so
-                the agent stops trying.
+                This agent can do more than the mailbox allows. The permissions
+                are fixed at the moment you connect, so switching a capability
+                on afterwards does not widen them — you have to go back through
+                Google's screen. Reconnecting asks for everything this agent can
+                do; the alternative is turning those capabilities off so it
+                stops trying.
                 <div style={{ marginTop: "var(--space-3)" }}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void connect()}
-                    disabled={busy}
-                  >
-                    Reconnect
-                  </Button>
+                  {agentId ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void connect()}
+                      disabled={busy}
+                    >
+                      Reconnect with full permissions
+                    </Button>
+                  ) : (
+                    <span className="agentsec__note">
+                      Save this agent first — reconnecting from an unsaved one
+                      would ask for the same read-only permission again.
+                    </span>
+                  )}
                 </div>
               </Callout>
             ) : null}
@@ -376,11 +419,14 @@ export default function EmailSection({
         {/* -------------------------------------------------
             THE TRAY
             ------------------------------------------------- */}
+        {/* Only about drafts. Connecting before saving is the
+            costlier mistake and is called out where the Connect
+            button would have been, rather than twice on one
+            screen. */}
         {!agentId ? (
           <Callout tone="info" title="Save this agent to see its drafts">
-            A mailbox belongs to your account, so the connection above works
-            straight away. Drafts are stored against a saved agent — save this
-            one and anything it writes will appear here.
+            Drafts are stored against a saved agent, so there is nowhere to put
+            one yet. Save this one and anything it writes will appear here.
           </Callout>
         ) : null}
 
