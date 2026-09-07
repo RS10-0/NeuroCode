@@ -164,6 +164,17 @@ export default function Register() {
           </Button>
         </form>
 
+        {/* The terms say an account IS the agreement — "by
+            creating an account or using BuildGentic, you agree
+            to these terms" — so the one place they have to be
+            reachable, other than the footer, is the button that
+            creates one. */}
+        <p className="auth__consent">
+          By creating an account you agree to our{" "}
+          <Link to="/terms">Terms of Service</Link> and{" "}
+          <Link to="/privacy">Privacy Policy</Link>.
+        </p>
+
         <p className="auth__footer">
           Already have an account? <Link to="/login">Sign in</Link>
         </p>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 import BrandMark from "../components/BrandMark";
+import SiteFooter from "../components/SiteFooter";
 import { useSurface } from "../components/Surface";
 import { Avatar, Badge, Button, Card } from "../components/ui";
 import { COURSE_CATALOG } from "../features/courses/catalog";
@@ -94,6 +96,36 @@ const TESTIMONIALS = [
 
 export default function Landing() {
   useSurface("learn");
+
+  /*
+   * Honour a fragment in the URL that arrived with the document.
+   *
+   * The sections below are rendered by React, so at the moment
+   * the browser looks for "#curriculum" there is nothing in the
+   * document to find and it silently gives up at the top of the
+   * page. That is the case for every link into this page from
+   * off it — the footer's Product column on /privacy and
+   * /terms, and any "/#demo" somebody has pasted somewhere —
+   * so the scroll has to happen after the first paint instead.
+   *
+   * An in-page click is unaffected: the target exists by then
+   * and the browser does it natively.
+   */
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+
+    if (!id) {
+      return;
+    }
+
+    /* One frame, so the section being scrolled to has been laid
+       out and the offset is the real one. */
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <div className="landing">
@@ -306,39 +338,7 @@ export default function Landing() {
         </Link>
       </section>
 
-      <footer className="landing-footer">
-        <div className="landing-footer__grid">
-          <div className="landing-footer__brand">
-            <Link to="/" className="landing__brand">
-              <span className="auth__brand-mark">
-                <BrandMark size={14} />
-              </span>
-              <span className="auth__brand-word">BuildGentic</span>
-            </Link>
-            <p className="landing-footer__tagline">
-              Learn AI by building something real with it.
-            </p>
-          </div>
-
-          <div className="landing-footer__col">
-            <h4 className="landing-footer__heading">Product</h4>
-            <a href="#workflow">How it works</a>
-            <a href="#pillars">What you will build</a>
-            <a href="#demo">Live demo</a>
-            <a href="#curriculum">Curriculum</a>
-          </div>
-
-          <div className="landing-footer__col">
-            <h4 className="landing-footer__heading">Account</h4>
-            <Link to="/login">Sign in</Link>
-            <Link to="/register">Create account</Link>
-          </div>
-        </div>
-
-        <div className="landing-footer__bottom">
-          © 2026 BuildGentic — learn AI by making things with it.
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

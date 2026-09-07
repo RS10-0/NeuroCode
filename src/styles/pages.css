@@ -85,6 +85,26 @@
   color: var(--ink-secondary);
 }
 
+/* Sits between the submit button and the sign-in line, and
+   deliberately reads as fine print rather than as another
+   choice on the form. */
+.auth__consent {
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-muted);
+}
+
+.auth__consent a {
+  color: var(--ink-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth__consent a:hover {
+  color: var(--accent);
+}
+
 /* =========================================================
    LANDING
    ========================================================= */
@@ -750,7 +770,7 @@
 
 .landing-footer__grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
   gap: var(--space-6);
   padding-bottom: var(--space-6);
   border-bottom: 1px solid var(--rule);
@@ -845,6 +865,91 @@
 
   .mockup__bubble {
     max-width: 92%;
+  }
+}
+
+/* =========================================================
+   LEGAL
+
+   The privacy policy and the terms of service.
+
+   One long column of prose, so almost everything here is
+   measure and rhythm. The body itself is not restyled: it
+   reuses the `.md` block in lab.css, because a policy and a
+   model's answer are the same typographic problem — headings,
+   paragraphs, bullets, links — and a second set of rules for
+   them would drift.
+   ========================================================= */
+
+.legal {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+
+/* Held to the same measure as the prose below it, so the title,
+   both rules and every paragraph line up on one left column
+   rather than the page having two different widths in it. */
+.legal__head {
+  max-width: var(--measure);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--rule);
+}
+
+.legal__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-snug);
+  color: var(--ink);
+}
+
+.legal__updated {
+  margin-top: var(--space-2);
+}
+
+.legal__lede {
+  margin-top: var(--space-4);
+  max-width: var(--measure);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--ink-secondary);
+}
+
+/* `.md` already caps itself at --measure and sets its own
+   internal spacing. This only has to keep the cross-link off
+   the last paragraph. */
+.legal__body {
+  padding-bottom: var(--space-7);
+}
+
+/* Shown only while the markdown chunk is in flight, which on
+   any warm connection is a frame or two. Sized like a paragraph
+   so the page does not jump when the real text replaces it. */
+.legal__loading {
+  font-size: var(--text-md);
+  color: var(--ink-muted);
+}
+
+.legal__crosslink {
+  max-width: var(--measure);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.legal__crosslink a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .legal {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
 }
 

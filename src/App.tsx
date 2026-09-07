@@ -10,6 +10,7 @@ import {
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { Privacy, Terms } from "./pages/Legal";
 
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
@@ -123,6 +124,20 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* The two documents anyone may have to read before
+              they can decide whether to have an account at all
+              — a parent, a school's IT reviewer, Google's OAuth
+              reviewer. Ungated for exactly that reason, and
+              declared here beside the other public routes
+              rather than anywhere near a gate.
+
+              Both words are already in RESERVED_SLUGS (see
+              features/sites/slug.ts), so no student's published
+              agent can ever have been issued this address. */}
+
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* FULL-VIEWPORT, AUTHENTICATED
 
