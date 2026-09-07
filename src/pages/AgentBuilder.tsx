@@ -37,6 +37,7 @@ import RecordsSection from "../features/agents/RecordsSection";
 import ModelSection from "../features/agents/ModelSection";
 import SaveBar from "../features/agents/SaveBar";
 import TestPanel from "../features/agents/TestPanel";
+import OfflineNotice from "../components/OfflineNotice";
 import { getAgent, listKnowledge } from "../features/agents/agentStore";
 import { fingerprint, type Agent } from "../features/agents/types";
 import { useAgentChat } from "../features/agents/useAgentChat";
@@ -765,6 +766,16 @@ function Workbench({
             </button>
           </div>
         </header>
+
+        {/* Above the whole workspace, not inside the Test panel:
+            the instructions, the capabilities and the knowledge
+            on the left are all equally beside the point while
+            nothing but a stand-in is answering on the right. */}
+        <OfflineNotice
+          offline={info.offline}
+          surface="agent"
+          className="agentshell__offline"
+        />
 
         <div className="agentwork">
           <nav className="agentnav" aria-label="Agent sections">

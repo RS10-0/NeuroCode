@@ -771,6 +771,17 @@ export interface AiRuntimeInfo {
   platformBudget: AiPlatformBudget;
   requestLimits: AiRequestLimits;
   fileLimits: AiFileLimits;
+  /*
+   * True when the server has no model provider configured and
+   * every answer is coming from the offline stand-in.
+   *
+   * Optional so an older server — one deployed before the field
+   * existed — reads as `undefined` and the notice stays hidden,
+   * rather than a missing field being treated as `false` by
+   * accident and a genuinely offline server going unannounced.
+   * Either way the banner is drawn only on an explicit `true`.
+   */
+  offline?: boolean;
 }
 
 export interface AiUsageReport {

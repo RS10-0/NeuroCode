@@ -21,6 +21,7 @@ import type { LabPreset } from "../features/lab/presets";
 import { clearHistory, loadHistory, saveHistory } from "../features/lab/history";
 import { hasErrors, previewJson, validate } from "../features/lab/request";
 import { useAiRuntime } from "../features/lab/useAiRuntime";
+import OfflineNotice from "../components/OfflineNotice";
 import { useCredits } from "../features/credits/useCredits";
 import { useLabRun } from "../features/lab/useLabRun";
 import type { LabRun, LabSettings } from "../features/lab/types";
@@ -342,6 +343,11 @@ function Workbench({
         }
       >
         <UsageMeters usage={usage} />
+
+        {/* Before the XP and availability notices, because it
+            outranks both: those say you cannot run something,
+            this says what you ran was not a model. */}
+        <OfflineNotice offline={info.offline} surface="lab" />
 
         {models.length === 0 ? (
           <Callout tone="caution" title="AI is unavailable">

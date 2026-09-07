@@ -26,12 +26,18 @@
 
 .agentshell {
   display: grid;
+  /* The `notice` row is normally empty and collapses to nothing:
+     OfflineNotice renders null unless the server says every
+     answer is coming from the offline stand-in. It spans both
+     columns because it is equally true of the panel on the left
+     and the one on the right. */
   grid-template-areas:
-    "head head"
-    "work test"
-    "bar  bar";
+    "head   head"
+    "notice notice"
+    "work   test"
+    "bar    bar";
   grid-template-columns: minmax(0, 1fr) 420px;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 
   flex: 1;
   min-width: 0;
@@ -121,6 +127,11 @@
 /* ---------------------------------------------------------
    WORK COLUMN
    --------------------------------------------------------- */
+
+.agentshell__offline {
+  grid-area: notice;
+  margin: var(--space-4) var(--space-5) 0;
+}
 
 .agentwork {
   grid-area: work;
@@ -1496,11 +1507,12 @@
   .agentshell {
     grid-template-areas:
       "head"
+      "notice"
       "work"
       "test"
       "bar";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
   }
 
   .agentwork {

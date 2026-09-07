@@ -2303,6 +2303,31 @@ export async function describeRuntimeFor(userId: string) {
     defaultModel: source.defaultModel,
     models: describeModels(source),
     limits: source.limits,
+    /*
+     * Whether the only thing that can answer is the offline
+     * stand-in.
+     *
+     * The mock exists so a fresh clone runs with an empty .env,
+     * and that is worth keeping. What was not worth keeping is
+     * that it announced itself in the boot log and NOWHERE
+     * ELSE: a deployment with no provider key configured served
+     * one of four fixed paragraphs to every question, and from
+     * the browser that is indistinguishable from a model that
+     * answered badly. Somebody asked their Email Agent to find
+     * a message and got a paragraph about prompt writing.
+     *
+     * So it is published, and the surfaces that can produce an
+     * answer say so. Not a secret in any useful sense: four
+     * fixed replies identify themselves the moment you send a
+     * second question.
+     *
+     * True only when EVERY candidate is the mock. A chain with
+     * one real provider and the mock behind it is a working
+     * chain, and saying otherwise would cry wolf.
+     */
+    offline: source.candidates.every(
+      (candidate) => candidate.providerId === "mock"
+    ),
     /* Published so a learner can see how close BuildGentic itself
        is to its ceiling, rather than being surprised by it. */
     platformBudget,
