@@ -1179,6 +1179,146 @@
 }
 
 /* =========================================================
+   QUICK THEME
+
+   A visitor's own control, answering only to `localStorage` —
+   see `useLocalTheme`. Pinned to the opposite corner from
+   `.site-dock` on purpose: the portfolio template's floating
+   chat launcher already owns the bottom right, and the two
+   have no reason to compete for it.
+   ========================================================= */
+
+.quicktheme {
+  position: fixed;
+  left: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+}
+
+.quicktheme__toggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--accent-rule);
+  background: var(--surface-1);
+  color: var(--accent);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.quicktheme__toggle:hover { background: var(--accent-bg); }
+
+.quicktheme__panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  display: grid;
+  gap: var(--space-3);
+  width: 208px;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-lg);
+}
+
+.quicktheme__hint {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  line-height: var(--leading-tight);
+}
+
+.quicktheme__swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+}
+
+/*
+ * Same trick as the editor's own `.siteedit__swatch`: the face
+ * carries `.site` and the real palette attributes, so the dot
+ * on it is the actual accent rather than a guess at one.
+ */
+.quicktheme__swatch {
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-full);
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.quicktheme__swatch--on { border-color: var(--accent); border-width: 2px; }
+
+.quicktheme__swatchface {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+.quicktheme__swatchaccent {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.quicktheme__modes {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.quicktheme__mode {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.quicktheme__mode--on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.quicktheme__reset {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font-size: var(--text-2xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.quicktheme__reset:hover { color: var(--ink-secondary); }
+
+@media (max-width: 620px) {
+  .quicktheme { left: var(--space-3); bottom: var(--space-3); }
+}
+
+/* =========================================================
    THE EDITOR
 
    BuildGentic's own surface, unlike everything above this line.

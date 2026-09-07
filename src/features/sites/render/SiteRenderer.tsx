@@ -2,8 +2,10 @@ import AssistantTemplate from "./AssistantTemplate";
 import FlagshipSite from "../flagship/FlagshipSite";
 import { flagshipIdentity } from "../flagship/identity";
 import PortfolioTemplate from "./PortfolioTemplate";
+import QuickTheme from "./QuickTheme";
 import ResearchTemplate from "./ResearchTemplate";
 import StudyTemplate from "./StudyTemplate";
+import { useLocalTheme } from "./useLocalTheme";
 import type { PublicSite } from "../publicApi";
 import type { SiteConfig } from "../schema";
 import type { PublicAgentFace } from "../publicApi";
@@ -50,6 +52,19 @@ export default function SiteRenderer({ site, preview }: SiteRendererProps) {
   const { config } = site;
 
   /*
+   * Called unconditionally, ahead of the flagship branch below,
+   * because a Hook cannot follow a conditional return. A
+   * flagship page simply never reads the result — its palette
+   * is its identity, not a visitor's preference to override,
+   * and `FlagshipSite` renders none of the controls that would
+   * let one form.
+   */
+  const localTheme = useLocalTheme(site.slug, {
+    palette: config.theme.palette,
+    mode: config.theme.mode,
+  });
+
+  /*
    * ONE OF BUILDGENTIC'S OWN FIVE.
    *
    * A flagship does not render as one of the four templates. It
@@ -85,8 +100,8 @@ export default function SiteRenderer({ site, preview }: SiteRendererProps) {
   return (
     <div
       className={`site site--${config.template}`}
-      data-palette={config.theme.palette}
-      data-mode={config.theme.mode}
+      data-palette={localTheme.palette}
+      data-mode={localTheme.mode}
       data-font={config.theme.font}
       data-corners={config.theme.corners}
       /*
@@ -95,9 +110,18 @@ export default function SiteRenderer({ site, preview }: SiteRendererProps) {
        * follow the student's palette rather than staying white
        * under a dark theme.
        */
-      style={{ colorScheme: config.theme.mode }}
+      style={{ colorScheme: localTheme.mode }}
     >
       <Layout {...props} />
+
+      {/*
+        Suppressed in the editor's own preview: the Customise
+        screen already has a live palette control right beside
+        it, wired to the document instead of to this browser, and
+        showing a second one on top of the page it is editing
+        would be two controls answering the same question.
+      */}
+      {preview ? null : <QuickTheme theme={localTheme} />}
     </div>
   );
 }
