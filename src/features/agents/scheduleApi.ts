@@ -169,7 +169,28 @@ export interface Feed {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api/schedules${path}`, {
+  /*
+   * A trailing slash never reaches the API, and the way it
+   * fails gives no hint why.
+   *
+   * `vercel.json` rewrites `/api/:path*` to the Render service.
+   * That pattern does not match `/api/schedules/` — the trailing
+   * slash leaves an empty final segment — so the request falls
+   * through to the SPA catch-all and Vercel answers a POST to a
+   * static index.html with 405 Method Not Allowed, no body, and
+   * no CORS or route error anywhere to explain it. The request
+   * never leaves Vercel, so nothing is logged server side
+   * either.
+   *
+   * Creating a schedule used to pass "/" here for the collection
+   * root, which is how it hit exactly that. Normalised rather
+   * than only fixed at the call site: the next person to write
+   * `call("/")` should get a working request, not another
+   * afternoon.
+   */
+  const suffix = path === "/" ? "" : path.replace(/\/+$/, "");
+
+  const response = await fetch(`/api/schedules${suffix}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -213,7 +234,7 @@ export function createSchedule(
   agentId: string,
   fields: ScheduleFields
 ): Promise<{ schedule: Schedule; costPerDay: number }> {
-  return call(`/`, {
+  return call("", {
     method: "POST",
     body: JSON.stringify({ agentId, ...fields }),
   });
