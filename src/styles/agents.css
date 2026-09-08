@@ -2532,6 +2532,29 @@
   color: var(--error);
 }
 
+/* The model's own wording, closed by default. Muted rather
+   than red: it is a protocol detail, not a second failure. */
+.turn__act-detail {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-muted);
+}
+
+.turn__act-detail > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--ink-secondary);
+}
+
+.turn__act-detail > summary:hover {
+  color: var(--ink);
+}
+
+.turn__act-detail > p {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--rule);
+}
+
 .turn__act-note {
   margin: var(--space-2) 0 0;
   color: var(--ink-muted);

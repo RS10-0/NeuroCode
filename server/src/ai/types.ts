@@ -862,11 +862,37 @@ export type RuntimeStreamEvent =
          payload can be large, and it has already been placed
          where it belongs, which is the prompt. */
       summary: string;
-      /* Present when `ok` is false. Safe to show a learner. */
+      /*
+       * Present when `ok` is false, and written FOR A LEARNER —
+       * about the agent, in the third person.
+       *
+       * The protocol's own refusals are not this. They are
+       * addressed to the model in the second person ("Your
+       * action was cut off... try again with a shorter action"),
+       * which shown verbatim to a person reads as the product
+       * blaming them for something they did not do and could not
+       * fix. Those go in `agentSaw`.
+       */
       error?: string;
-      /* Set when the result was cut to fit the budget, so the
-         Test panel can say so rather than letting a learner
-         wonder why the agent ignored half an answer. */
+      /*
+       * The sentence the MODEL was handed, when it differs from
+       * the one above.
+       *
+       * Kept because "why did it give up" is answered by what
+       * the agent actually read, and a learner debugging that
+       * deserves the real text — but it belongs behind a
+       * disclosure rather than in the middle of a transcript.
+       */
+      agentSaw?: string;
+      /*
+       * Set when the tool's OUTPUT was cut to fit the budget, so
+       * the Test panel can say so rather than letting a learner
+       * wonder why the agent ignored half an answer.
+       *
+       * Strictly about output. It must never be set on a record
+       * where no tool ran — there is no output to have clipped,
+       * and saying otherwise is simply false.
+       */
       truncated?: boolean;
     }
   /*

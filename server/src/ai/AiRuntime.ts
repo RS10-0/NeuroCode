@@ -1754,14 +1754,27 @@ export async function* runChat(
          */
         /* No `tool`: nothing ran, and naming one would put a
            tool in the trace that was never reached. */
+        /*
+         * `parsed.truncated` means the MODEL's action was cut
+         * off mid-write. It is deliberately NOT copied to the
+         * record's `truncated`, which means the tool's output
+         * was clipped — nothing ran here, so there is no output.
+         * Conflating the two put "the output was longer than the
+         * agent was allowed to see" under a step where no tool
+         * was ever reached.
+         */
         yield {
           type: "tool_result",
           step: nextStep,
           ok: false,
           latencyMs: 0,
-          summary: "the action could not be read",
-          error: parsed.error,
-          ...(parsed.truncated ? { truncated: true } : {}),
+          summary: parsed.truncated
+            ? "the request was cut off"
+            : "the request could not be read",
+          error: parsed.truncated
+            ? "The agent started asking for a tool, ran out of room before it finished the request, and answered with what it already had."
+            : "The agent asked for a tool but wrote the request in a form the server could not read, so nothing ran.",
+          agentSaw: parsed.error,
         };
 
         actionTurns.push(

@@ -1380,13 +1380,34 @@ function Acted({ steps }: { steps: ActionStep[] }) {
             ) : null}
 
             {/*
-              A failure is shown in full, not summarised. The
-              agent was given this sentence and decided what to
-              do next from it, so a learner debugging "why did
-              it give up" needs to read exactly what it read.
+              What happened, said about the agent and to the
+              person reading.
+
+              The sentence the MODEL was handed is a different
+              thing and lives under the disclosure below. Those
+              are written in the second person — "Your action was
+              cut off... try again with a shorter action" — and
+              printed plainly here they read as the product
+              telling somebody off for a mistake the model made
+              and that they cannot do anything about.
             */}
             {step.result?.error ? (
               <p className="turn__act-error">{step.result.error}</p>
+            ) : null}
+
+            {/*
+              Still reachable, and deliberately so: "why did it
+              give up" is answered by what the agent actually
+              read, and a learner debugging that deserves the
+              real text. Closed by default, because it is a
+              detail about the protocol rather than about their
+              agent.
+            */}
+            {step.result?.agentSaw ? (
+              <details className="turn__act-detail">
+                <summary>What the agent was told</summary>
+                <p>{step.result.agentSaw}</p>
+              </details>
             ) : null}
 
             {step.result?.truncated ? (

@@ -540,7 +540,14 @@ export interface AiToolResultInfo {
   /* A short line — "HTTP 200, 1.2 KB", "ran in 118ms". Never
      the payload: that went to the model, not to this panel. */
   summary: string;
+  /* Written for a learner, about the agent. See the server's
+     ActionRecord: the model's own refusals are not this. */
   error?: string;
+  /* The sentence the model was handed, when it differs. Shown
+     behind a disclosure, never in the transcript itself. */
+  agentSaw?: string;
+  /* The tool's OUTPUT was clipped. Never set where no tool
+     ran. */
   truncated?: boolean;
 }
 
