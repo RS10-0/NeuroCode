@@ -2807,11 +2807,21 @@
   font-family: var(--font-sans);
 }
 
+/*
+ * The desk runs nearly the width of the room.
+ *
+ * A gutter of 5vw either side rather than a 1200px column: on a
+ * 1600px window that hands 90% of the screen to the page, which
+ * is what a desk should feel like and what a fixed measure two
+ * thirds that wide did not. The cap stops an ultrawide getting a
+ * horizon instead of a page, and the floor of the clamp keeps
+ * the narrow end on the same 24px the rest of this file uses.
+ */
 .fs-study__wrap {
   width: 100%;
-  max-width: 1200px;
+  max-width: 2000px;
   margin: 0 auto;
-  padding-inline: var(--space-5);
+  padding-inline: clamp(var(--space-5), 5vw, var(--space-9));
 }
 
 .fs-study__top {
@@ -2824,9 +2834,9 @@
   align-items: center;
   gap: var(--space-4);
   width: 100%;
-  max-width: 1200px;
+  max-width: 2000px;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4) clamp(var(--space-5), 5vw, var(--space-9));
 }
 
 .fs-study__topname {
@@ -2949,7 +2959,10 @@
 
 .fs-study__board {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 316px;
+  /* The rail takes a share of the extra width the wrap now has,
+     rather than leaving all of it to the transcript — 316px of
+     ways-in beside a 1200px conversation reads as an offcut. */
+  grid-template-columns: minmax(0, 1fr) clamp(316px, 23%, 380px);
   gap: var(--space-6);
   align-items: start;
   padding-block: var(--space-6) var(--space-8);
@@ -2963,8 +2976,21 @@
   overflow: hidden;
 }
 
+/*
+ * As tall as what is on it, and no taller.
+ *
+ * A fixed height stretched the parchment under a two-line
+ * greeting, so the first thing on the page was a hand-span of
+ * empty desk between the opening and the box you are meant to
+ * type into. Auto height with the same figure as a ceiling
+ * keeps the panel bounded once a conversation is running: the
+ * log is the only child that can shrink — the head, the
+ * openings and the composer are all `flex: none` — and it is
+ * the one that scrolls.
+ */
 .fs-study .fsc {
-  height: min(640px, 76vh);
+  height: auto;
+  max-height: min(640px, 76vh);
 }
 
 .fs-study__sessionhead {
@@ -2993,6 +3019,9 @@
   display: grid;
   gap: var(--space-5);
   align-content: start;
+  /* Content height rather than the base skeleton's `flex: 1`,
+     which is what let it stretch. See the note on `.fsc` above. */
+  flex: 0 1 auto;
   padding: var(--space-5);
   background-image: repeating-linear-gradient(
     to bottom,
@@ -3007,6 +3036,12 @@
 .fs-study .fsc__turn {
   grid-template-columns: 26px minmax(0, 1fr);
   gap: var(--space-2);
+  /* The panel spans the desk; the writing on it does not. A
+     transcript set the full width of a 1900px window runs to
+     about 150 characters a line, which is roughly twice what
+     anybody can track back to the start of. Turns stay
+     left-aligned, so the room this leaves reads as paper. */
+  max-width: 96ch;
 }
 
 /* The mark column stretches so the index card's coloured tab
@@ -3363,6 +3398,25 @@
 
   .fs-study .fsc__turn {
     grid-template-columns: 20px minmax(0, 1fr);
+  }
+
+  /*
+   * On a phone the panel is as tall as it needs to be, and the
+   * transcript is what has a ceiling.
+   *
+   * Capping the whole panel works on a desktop, where the head,
+   * three openings side by side and the console come to about
+   * a fifth of it. Stacked on a 390px screen those come to five
+   * sixths, leaving a hundred pixels of letterbox to read the
+   * greeting through. So here the page scrolls and only the
+   * conversation scrolls inside itself.
+   */
+  .fs-study .fsc {
+    max-height: none;
+  }
+
+  .fs-study .fsc__log {
+    max-height: 58vh;
   }
 }
 
