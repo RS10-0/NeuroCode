@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -319,8 +319,67 @@ function Workbench({
   const { notify } = useToast();
   const { credits, canAfford, refresh: refreshCredits } = useCredits();
 
-  const [section, setSection] = useState<SectionId>("identity");
+  /*
+   * Open on Email when we have just come back from Google.
+   *
+   * The callback redirects to `<returnPath>?email=connected` (or
+   * `failed`, or `cancelled` when somebody presses Cancel on the
+   * consent screen). Until now nothing anywhere read that: every
+   * outcome landed on Identity with a query string no screen
+   * consumed, so a round trip through Google — the longest,
+   * most consequential flow in the product — ended on a page
+   * that said nothing about what had happened, from the tab you
+   * did not start on.
+   *
+   * Read in the initialiser rather than an effect so the first
+   * paint is already the right tab, instead of Identity for a
+   * frame.
+   */
+  const [section, setSection] = useState<SectionId>(() =>
+    new URLSearchParams(window.location.search).has("email")
+      ? "email"
+      : "identity"
+  );
   const [leaveOpen, setLeaveOpen] = useState(false);
+
+  /*
+   * Say how it went, once, then take the parameter out of the
+   * URL so a refresh does not repeat it.
+   */
+  const emailReturn = new URLSearchParams(window.location.search).get("email");
+
+  /*
+   * Announced once per return, not once per effect run.
+   *
+   * StrictMode invokes effects twice in development, which
+   * showed the same toast twice. Stripping the query below
+   * happens to prevent a third, but relying on that would make
+   * a visible duplicate depend on the order of two unrelated
+   * things.
+   */
+  const announced = useRef(false);
+
+  useEffect(() => {
+    if (!emailReturn || announced.current) {
+      return;
+    }
+
+    announced.current = true;
+
+    if (emailReturn === "connected") {
+      notify("Mailbox connected.", "correct");
+    } else if (emailReturn === "cancelled") {
+      /* Not an error on anybody's part — they pressed Cancel. */
+      notify("No mailbox was connected.", "info");
+    } else {
+      notify(
+        "That mailbox could not be connected. Try connecting it again.",
+        "error"
+      );
+    }
+
+    navigate(window.location.pathname, { replace: true });
+  }, [emailReturn, notify, navigate]);
 
   /* Which way the section tabs run off the edge, so the strip
      can say so. Eight tabs do not fit a phone.
