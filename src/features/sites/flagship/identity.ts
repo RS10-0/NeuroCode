@@ -226,22 +226,29 @@ const IDENTITIES: Partial<Record<FlagshipId, FlagshipIdentity>> = {
     id: "study-tutor",
     name: "Study Tutor",
     eyebrow: "Study desk",
-    headline: "Understand it, don't just memorise it.",
+    headline: "Understand, don't just memorise.",
     deck:
       "Work through what you are stuck on one step at a time — with a tutor that asks you questions back, and that would rather you got there yourself.",
-    mode: "light",
+    /*
+     * The only dark page besides the workbench, and the reason
+     * is the subject rather than the taste: this is the page
+     * somebody opens at nine in the evening with a past paper
+     * open beside it. A lamp on a desk in a dark room is the
+     * room this page is actually used in.
+     */
+    mode: "dark",
     chat: {
       greeting:
-        "What are we working on? A topic, a question you got wrong, or a photo of the problem all work.",
-      placeholder: "What are you studying?",
-      sendLabel: "Ask",
+        "What are we working on? A topic, a question you got wrong, or the exact thing you are stuck on all work.",
+      placeholder: "What are we mastering today?",
+      sendLabel: "Start studying",
       hint: "It will ask you questions back. That is not it being difficult — it is how the explanation lands.",
-      openingTitle: "Nothing on the desk yet.",
-      /* "From the list" rather than "below": the ways in sit
-         beside the chat on a wide screen and under it on a
-         narrow one, and only one of those is below. */
+      openingTitle: "The desk is clear.",
+      /* Points at the three cards directly under the chat
+         rather than at the rail: they are the first thing in
+         reach at every width, which the rail is not. */
       openingBody:
-        "Pick a way in from the list, or just say what you are stuck on.",
+        "Pick one of the three below, or just say what you are stuck on.",
     },
     footnote:
       "A BuildGentic flagship agent. Check anything that will be marked.",

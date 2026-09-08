@@ -133,6 +133,40 @@ const MODES: Mode[] = [
   },
 ];
 
+/*
+ * The first move, and the only three that fit every session.
+ *
+ * These are NOT the ways in. Those are per mode, live in the
+ * rail and stay reachable all session, for the reason set out
+ * where they are rendered. These are the opposite kind of
+ * thing: three generic openings, in the chat itself, directly
+ * above the box you would otherwise have to think of something
+ * to type into — and gone the moment there is a conversation,
+ * because FlagshipChat only draws prompts while the transcript
+ * is fresh.
+ *
+ * A page whose first screen asks an open question and offers
+ * nothing is a page most people close. This is the answer to
+ * that, and it is deliberately three rather than nine.
+ */
+const QUICK_LAUNCH: FlagshipPrompt[] = [
+  {
+    label: "📖  Explain a topic",
+    text: "Explain a topic to me using a simple analogy first, then the proper version. Ask me which topic before you start.",
+    meta: "Start from the idea, not the definition",
+  },
+  {
+    label: "✍️  Quiz me",
+    text: "Ask me one exam question at a time on a topic I choose. Wait for my answer before telling me anything, then mark it and explain what I missed.",
+    meta: "One question at a time",
+  },
+  {
+    label: "🔍  Fix my mistake",
+    text: "I am stuck on a step and I do not know why. Ask me to show you what I tried, then help me find the point where it went wrong rather than giving me the answer.",
+    meta: "Find the step that broke",
+  },
+];
+
 /* A place to put the next half hour. Ticks live in this tab
    and nowhere else — see the note at the top of the file. */
 const CHECKLIST = [
@@ -247,19 +281,23 @@ export default function StudyDesk({
               variant="study"
               ask={ask}
               /*
-               * No `prompts`, and no remount on a mode change.
+               * The three generic openings, and no remount on a
+               * mode change.
                *
-               * The ways in live in the rail beside the chat
-               * rather than inside it — the same arrangement the
-               * generic study template uses, and for a better
-               * reason here: a tab strip that reset the
+               * The per-mode ways in are NOT these and do not
+               * live here: a tab strip that reset the
                * conversation would punish somebody for looking
-               * at what "Practise" offers, and one whose
-               * openings vanished after the first question
-               * would stop meaning anything the moment it
-               * mattered. In the rail they change with the tab
-               * and stay reachable all session.
+               * at what "Practise" offers, and openings that
+               * vanished after the first question would stop
+               * meaning anything the moment they mattered. So
+               * those stay in the rail, change with the tab and
+               * last all session.
+               *
+               * These are the other job — the very first move,
+               * next to the box, gone once there is a
+               * conversation to look at instead.
                */
+              prompts={QUICK_LAUNCH}
               head={
                 <header className="fs-study__sessionhead">
                   <span className="fs-study__sessionlabel">
@@ -291,10 +329,18 @@ export default function StudyDesk({
           </div>
 
           <aside className="fs-study__rail">
-            <section className="fs-study__card">
-              <h2 className="fs-study__cardtitle">
+            {/*
+              A real <details>, not a div with a click handler.
+              It opens by default because the rail is beside the
+              chat rather than over it — nothing is hidden by
+              leaving it open — and it closes because on a narrow
+              screen the rail sits under the conversation and a
+              long list there is in the way.
+            */}
+            <details className="fs-study__card fs-study__card--drawer" open>
+              <summary className="fs-study__cardtitle fs-study__drawerhead">
                 Ways in &mdash; {active.label.toLowerCase()}
-              </h2>
+              </summary>
 
               <ul className="fs-study__ways">
                 {active.prompts.map((prompt) => (
@@ -321,7 +367,7 @@ export default function StudyDesk({
                   <li key={point}>{point}</li>
                 ))}
               </ul>
-            </section>
+            </details>
 
             <section className="fs-study__card fs-study__card--list">
               <h2 className="fs-study__cardtitle">This session</h2>

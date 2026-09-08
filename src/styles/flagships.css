@@ -237,33 +237,55 @@
   --fs-gutter: #55627244;
 }
 
-/* ----- STUDY TUTOR — notebook cream, forest, highlighter ----- */
+/* ----- STUDY TUTOR — mahogany, lamplight, burnished gold -----
+
+   A reading room after dark rather than a notebook on a table.
+
+   The panels are deliberately translucent: `--surface-1` is a
+   frosted amber glass over the wood, so the grain underneath
+   stays faintly visible through every card and the page reads
+   as one surface with things resting on it. That only works
+   while something is painted behind them — see the wood and the
+   lamp on `.fs-study` — so a solid fallback is not equivalent
+   and none is offered.
+
+   Contrast was measured rather than eyeballed, because a dark
+   page makes it easy to be wrong in the flattering direction.
+   Cream on the deepest wood is about 15:1; the muted tone is
+   about 7:1; the gold used for small text is about 8:1. The
+   amber accent is about 5.5:1 and is therefore never used for
+   body copy — it draws borders, fills buttons and marks the
+   active state, and `--on-accent` puts the wood back on top of
+   it at about 6:1. */
 
 .fs[data-flagship="study-tutor"],
 .deskskin[data-flagship="study-tutor"] {
-  --canvas: #fbf9f3;
-  --surface-1: #ffffff;
-  --surface-2: #f2efe6;
-  --surface-inset: #ebe7da;
-  --rule: #e4dfd1;
-  --rule-strong: #c8c1ae;
-  --ink: #191a16;
-  --ink-secondary: #434439;
-  --ink-muted: #67685c;
-  --accent: #2c5b4c;
-  --accent-hover: #1f4438;
-  --accent-bg: #e2eee8;
-  --accent-rule: #b3d2c4;
-  --on-accent: #ffffff;
+  --canvas: #1a120b;
+  --surface-1: rgba(45, 27, 14, 0.75);
+  --surface-2: rgba(62, 39, 20, 0.66);
+  --surface-inset: rgba(18, 12, 7, 0.82);
+  --rule: #78350f;
+  --rule-strong: #a1541a;
+  --ink: #fef3c7;
+  --ink-secondary: #e8d3a4;
+  --ink-muted: #c2a578;
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --accent-bg: rgba(217, 119, 6, 0.16);
+  --accent-rule: #b45309;
+  --on-accent: #1a120b;
 
-  --correct: #2c6e4f;
-  --caution: #8a5a18;
-  --error: #9b3232;
+  --correct: #86c48a;
+  --caution: #f0b45e;
+  --error: #f08a7a;
   --measure: 62ch;
 
-  --fs-ruleline: #cfdbe6;
-  --fs-spine: #c9a227;
-  --fs-highlight: #f6e6a3;
+  /* The lamp, the gold used for active states and small text,
+     and the parchment the transcript is written on. */
+  --fs-lamp: #ffb366;
+  --fs-gold: #f59e0b;
+  --fs-parchment: rgba(88, 59, 32, 0.52);
+  --fs-glass-blur: 12px;
 }
 
 /* =========================================================
@@ -3343,6 +3365,399 @@
     grid-template-columns: 20px minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------
+   THE LAMP, THE WOOD, AND THE THINGS ON THE DESK
+
+   Everything above this point draws the study desk's structure
+   and is unchanged. This block is the atmosphere, and it comes
+   last so it wins on equal specificity rather than by being
+   written with more selectors than it needs.
+
+   No image is involved. The mahogany is three stacked
+   gradients — a deep raking base, a fine dark grain, and a
+   sparser warm fleck across it — and the lamp is one radial
+   bloom hung above the middle of the page. That is a decision
+   rather than a limitation: a photographic desk would be
+   200 KB on a page students open on a phone at nine in the
+   evening, and it would have to be licensed, and it would look
+   like a stock photo of a desk rather than like a desk.
+   --------------------------------------------------------- */
+
+.fs-study {
+  position: relative;
+  background:
+    /* The overhead lamp. Sits over the wood, under everything
+       else, and is what makes the middle of the page the place
+       your eye goes first. */
+    radial-gradient(
+      58rem 32rem at 50% -5rem,
+      rgba(255, 179, 102, 0.32) 0%,
+      rgba(255, 179, 102, 0.14) 34%,
+      transparent 70%
+    ),
+    /* The corners fall away, which is what makes the bloom
+       above read as one lamp rather than as a lighter shade of
+       brown across the whole page. */
+      radial-gradient(
+        120% 90% at 50% 22%,
+        transparent 42%,
+        rgba(0, 0, 0, 0.34) 100%
+      ),
+    /* Grain: dark rays close together, warm fleck further
+       apart, both at a slight angle so nothing lines up with
+       the layout and reads as a stripe. */
+      repeating-linear-gradient(
+        96deg,
+        rgba(0, 0, 0, 0.15) 0 2px,
+        transparent 2px 7px
+      ),
+    repeating-linear-gradient(
+      93deg,
+      rgba(255, 214, 165, 0.028) 0 1px,
+      transparent 1px 13px
+    ),
+    linear-gradient(168deg, #2c1d11 0%, #1a120b 58%, #150e08 100%);
+}
+
+/* ----- THE BOOKMARKS -----
+
+   Three cards standing on the desk rather than three tabs cut
+   into a folder. The selected one lifts and warms; the others
+   sit flat and wait. */
+
+.fs-study__tabs {
+  gap: var(--space-3);
+  align-items: stretch;
+  border-bottom: 0;
+  padding-bottom: var(--space-2);
+}
+
+.fs-study__tab {
+  position: relative;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  backdrop-filter: blur(var(--fs-glass-blur));
+  padding: var(--space-4);
+  margin-bottom: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 200ms ease-in-out,
+    box-shadow 200ms ease-in-out,
+    border-color 200ms ease-in-out,
+    background 200ms ease-in-out;
+}
+
+.fs-study__tab:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.09),
+    0 10px 24px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(217, 119, 6, 0.16);
+}
+
+.fs-study__tab[aria-selected="true"] {
+  border-color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(217, 119, 6, 0.17) 0%,
+      rgba(45, 27, 14, 0.78) 62%
+    );
+  color: var(--ink);
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.12),
+    0 12px 28px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(245, 158, 11, 0.2);
+}
+
+/* The ribbon down the spine of the selected card. */
+.fs-study__tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto var(--space-4) 0 var(--space-4);
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--fs-gold);
+}
+
+.fs-study__tab[aria-selected="true"] .fs-study__tablabel {
+  color: var(--fs-gold);
+}
+
+/* ----- THE PARCHMENT -----
+
+   The transcript is the one thing on this page that is read
+   rather than scanned, so it gets a warmer, lighter ground
+   than the wood and a rule around it to sit it on the desk. */
+
+.fs-study .fsc__log {
+  background: var(--fs-parchment);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(var(--fs-glass-blur));
+  padding: var(--space-5);
+  box-shadow: inset 0 1px 0 rgba(255, 214, 165, 0.06);
+}
+
+/* ----- QUICK LAUNCH -----
+
+   Three cards under the transcript and above the box, drawn as
+   things to press rather than as links. They are FlagshipChat's
+   own prompt slot, so they disappear on their own once there is
+   a conversation — see QUICK_LAUNCH in StudyDesk. */
+
+.fs-study .fsc__prompts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.fs-study .fsc__prompt {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  text-align: left;
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  backdrop-filter: blur(var(--fs-glass-blur));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 200ms ease-in-out,
+    box-shadow 200ms ease-in-out,
+    border-color 200ms ease-in-out;
+}
+
+.fs-study .fsc__prompt:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.1),
+    0 10px 24px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(217, 119, 6, 0.18);
+}
+
+.fs-study .fsc__promptlabel {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 20, "WONK" 0, "opsz" 18;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fs-study .fsc__prompt:hover .fsc__promptlabel {
+  color: var(--fs-gold);
+}
+
+.fs-study .fsc__promptmeta {
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--ink-muted);
+}
+
+/* ----- THE CONSOLE -----
+
+   One rounded bar with the box and the button inside it, lit
+   while it is the only thing on the page worth pressing. */
+
+.fs-study .fsc__field {
+  border: 1px solid var(--rule-strong);
+  border-radius: 26px;
+  background: var(--surface-1);
+  backdrop-filter: blur(var(--fs-glass-blur));
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.07),
+    0 6px 18px rgba(0, 0, 0, 0.4);
+  transition:
+    border-color 200ms ease-in-out,
+    box-shadow 200ms ease-in-out;
+}
+
+.fs-study .fsc__field:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.1),
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(217, 119, 6, 0.22);
+}
+
+/*
+ * The ring that says "start here", and only while there is
+ * nothing else to look at.
+ *
+ * `:has(.fsc__prompts)` is true exactly while FlagshipChat is
+ * drawing its prompts, which it does only while the transcript
+ * is fresh. So the pulse is tied to the empty state without
+ * this file knowing anything about turns, and it stops the
+ * moment somebody asks something. Where :has is unsupported the
+ * console is simply not animated, which costs nothing.
+ */
+.fs-study .fsc:has(.fsc__prompts) .fsc__field {
+  animation: fs-study-await 2.8s ease-in-out infinite;
+}
+
+@keyframes fs-study-await {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 214, 165, 0.07),
+      0 6px 18px rgba(0, 0, 0, 0.4),
+      0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 214, 165, 0.07),
+      0 6px 18px rgba(0, 0, 0, 0.4),
+      0 0 0 5px rgba(245, 158, 11, 0.14);
+  }
+}
+
+/* The send button is the warm thing on a dark page. */
+.fs-study .fsc__send {
+  border-radius: 999px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transition:
+    background 200ms ease-in-out,
+    box-shadow 200ms ease-in-out,
+    transform 200ms ease-in-out;
+}
+
+.fs-study .fsc__send:hover:not(:disabled) {
+  background: var(--fs-gold);
+  border-color: var(--fs-gold);
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+}
+
+/* ----- THE RAIL -----
+
+   Leather-bound rather than papery: deeper ground, a warm
+   inner edge, and a summary row that reads as the top of a
+   drawer. */
+
+.fs-study__card {
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(var(--fs-glass-blur));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 165, 0.07),
+    0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.fs-study__drawerhead {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fs-study__drawerhead::-webkit-details-marker {
+  display: none;
+}
+
+/* The drawer's own affordance, rotated when it is open. */
+.fs-study__drawerhead::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-muted);
+  border-bottom: 1.5px solid var(--ink-muted);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 200ms ease-in-out;
+}
+
+.fs-study__card--drawer[open] > .fs-study__drawerhead::after {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.fs-study__drawerhead:hover {
+  color: var(--fs-gold);
+}
+
+.fs-study__way {
+  transition:
+    transform 200ms ease-in-out,
+    border-color 200ms ease-in-out,
+    background 200ms ease-in-out;
+}
+
+.fs-study__way:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* The tick, in gold. */
+.fs-study__box:checked {
+  background: var(--fs-gold);
+  border-color: var(--fs-gold);
+}
+
+/* ----- NARROW -----
+
+   Three quick-launch cards in a row is three cards nobody can
+   read on a phone, so they stack. Everything else already
+   collapses further down this file. */
+
+@media (max-width: 720px) {
+  .fs-study .fsc__prompts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fs-study__tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * The console stops being a pill and becomes two stacked rows.
+ *
+ * The base composer is `1fr auto`, which is right until the
+ * button is the width of the words "Start studying" and the
+ * column left for the box is narrower than its own placeholder.
+ * At that point the invitation to type is a truncated sentence,
+ * which is a worse first impression than a slightly plainer
+ * shape. So below this width the box gets the full row and the
+ * button sits under it.
+ */
+@media (max-width: 620px) {
+  .fs-study .fsc__field {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  .fs-study .fsc__send {
+    grid-column: 1;
+    justify-content: center;
+  }
+}
+
+/* No reduced-motion block here on purpose: the MOTION section
+   at the foot of this file already zeroes every animation and
+   transition inside `.fs` with !important, which covers the
+   pulse and the lifts. A second policy that also stripped the
+   transforms would disagree with the one this file has already
+   made. */
 
 /* =========================================================
    MOTION
