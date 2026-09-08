@@ -133,7 +133,28 @@ export async function startEmailConnect(input: {
 }): Promise<string> {
   const response = await fetch(`${BASE}/email/connect`, {
     method: "POST",
-    headers: { ...(await authHeaders()), "content-type": "application/json" },
+    /*
+     * `authHeaders()` already sets Content-Type. Adding a second
+     * one here is not redundant, it is fatal, and it cost a long
+     * afternoon:
+     *
+     * object keys are case-sensitive, so "Content-Type" and
+     * "content-type" both survive into the HeadersInit. The
+     * Headers constructor then appends rather than replaces, and
+     * the request goes out as
+     * `Content-Type: application/json, application/json`.
+     * `express.json()` matches the exact type and refuses that,
+     * so the server sees an EMPTY body on a request that looks
+     * perfectly well formed from the browser's side.
+     *
+     * The symptom was nothing like the cause. With no body there
+     * is no agentId, so the connect route took its "no agent"
+     * default and asked Google for read-only — and no returnPath
+     * either, so the callback sent people to /agents instead of
+     * back to the agent they started from. Two unrelated-looking
+     * bugs, one duplicated header.
+     */
+    headers: await authHeaders(),
     body: JSON.stringify(input),
   });
 
