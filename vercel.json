@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://api.buildgentic.com/api/:path*" },
+    { "source": "/api/:rest(.*)", "destination": "https://api.buildgentic.com/api/:rest" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

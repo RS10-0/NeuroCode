@@ -18,9 +18,42 @@ picture, then what to do in each one.
   Supabase                           (unchanged — Postgres, RLS, auth)
 ```
 
+### The two `/api` rewrites, and why there are two
+
+`vercel.json` forwards `/api/*` to Render with **two** rules, not one:
+
+```json
+{ "source": "/api/:path*",    "destination": "https://api.buildgentic.com/api/:path*" },
+{ "source": "/api/:rest(.*)", "destination": "https://api.buildgentic.com/api/:rest" },
+{ "source": "/(.*)",          "destination": "/index.html" }
+```
+
+The first is the real rule. The second is a safety net, and it is there
+because **`:path*` does not match a trailing slash**. A request to
+`/api/schedules/` leaves an empty final segment, misses rule 1, and falls
+through to the SPA catch-all — where Vercel answers a POST to a static
+`index.html` with `405 Method Not Allowed`.
+
+That failure is close to undebuggable from the server side. The request
+never leaves Vercel, so there is no route error, no CORS error, and
+nothing at all in the Render log. The browser sees a 405 with no
+content-type and a fragment of HTML where the JSON error should be. It
+cost two separate debugging sessions before anyone looked at the CDN.
+
+`:rest(.*)` matches whatever rule 1 missed, trailing slashes included, and
+forwards the path unchanged; Express's default non-strict routing then
+treats `/api/schedules/` and `/api/schedules` as the same route. The rule
+is deliberately additive — it can only catch requests that were already
+going to the wrong place — so the worst case is that it changes nothing.
+
+**If you ever restructure these rules, keep the invariant:** no `/api`
+request may reach the `/(.*)` fallback. Check it with a POST to a path
+with a trailing slash — a 401 means it reached the API, a 405 means it
+did not.
+
 The Chrome extension is the one caller that talks to
 `api.buildgentic.com` directly rather than through the Vercel rewrite —
-see [Chrome extension](#chrome-extension-when-you-publish-it) below.
+see [Chrome extension](#chrome-extension) below.
 
 Nothing in this document is done automatically. It is the checklist for
 what to click and paste, once, by hand.
