@@ -650,12 +650,17 @@ export default function KnowledgeSection({
               icon={<Paperclip size={15} />}
               onClick={() => fileRef.current?.click()}
             >
-              Add a text file
+              Add a file
             </Button>
 
-            {/* Never submitted anywhere. The file is read in this
-                tab and only its text is kept, which is why this
-                project still has no storage bucket. */}
+            {/* Where a file goes depends on what it is, and the
+                difference is worth keeping straight: plain text
+                is read in this tab and never leaves it, while a
+                PDF, Word or Excel file is sent to the server to
+                have its text extracted and dropped again inside
+                the same request. Either way only the TEXT is
+                kept, which is why this project still has no
+                storage bucket. */}
             <input
               ref={fileRef}
               type="file"
@@ -672,10 +677,11 @@ export default function KnowledgeSection({
           </div>
 
           <p className="agentsec__note">
-            Plain text only for now — .txt, .md, .csv, .json. A PDF is a
-            container, not text, and reading its raw bytes into a prompt would
-            give your agent gibberish rather than your document. Files are read
-            here in your browser and never uploaded.
+            Text files — .txt, .md, .csv, .tsv, .json — are read here in your
+            browser and never leave it. A PDF, Word or Excel file is a
+            container rather than text, so it goes to the server to have its
+            words pulled out and is deleted in the same request; only the text
+            is stored. Nothing is kept anywhere else either way.
           </p>
         </div>
       </div>

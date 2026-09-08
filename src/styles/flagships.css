@@ -94,7 +94,24 @@
 
 /* ----- WRITING COACH — warm paper, printer's oxblood ----- */
 
-.fs[data-flagship="writing-coach"] {
+/*
+ * Each block is keyed to TWO selectors, and the second one is
+ * the owner's desk rather than the public page.
+ *
+ * `.fs` carries a page's worth of assumptions with it —
+ * min-height 100vh, `margin: 0` on every p/ul/ol/dl beneath it,
+ * `list-style: none` — which are right for a standalone page and
+ * would fight every application component nested inside the
+ * desk. So the desk takes the palette and none of the layout,
+ * exactly the way `.labsurface` scopes the Lab's own colours
+ * inside the shell without inheriting a page.
+ *
+ * Because these are the platform's own semantic token names, a
+ * Callout, a Meter or a rendered markdown block dropped into the
+ * desk comes out in that agent's colours with no overrides.
+ */
+.fs[data-flagship="writing-coach"],
+.deskskin[data-flagship="writing-coach"] {
   --canvas: #f7f4ec;
   --surface-1: #fffdf7;
   --surface-2: #f1ece0;
@@ -124,7 +141,8 @@
 
 /* ----- CAREER EXPLORER — cool paper, deep teal, rust ----- */
 
-.fs[data-flagship="career-explorer"] {
+.fs[data-flagship="career-explorer"],
+.deskskin[data-flagship="career-explorer"] {
   --canvas: #f5f7f9;
   --surface-1: #ffffff;
   --surface-2: #eaeff3;
@@ -162,7 +180,8 @@
 
 /* ----- RESEARCH ASSISTANT — slate ink, ochre apparatus ----- */
 
-.fs[data-flagship="research-assistant"] {
+.fs[data-flagship="research-assistant"],
+.deskskin[data-flagship="research-assistant"] {
   --canvas: #faf9f6;
   --surface-1: #ffffff;
   --surface-2: #f1efe8;
@@ -191,7 +210,8 @@
 
 /* ----- CODING COACH — the only dark one ----- */
 
-.fs[data-flagship="coding-coach"] {
+.fs[data-flagship="coding-coach"],
+.deskskin[data-flagship="coding-coach"] {
   --canvas: #0c1016;
   --surface-1: #131922;
   --surface-2: #18202b;
@@ -219,7 +239,8 @@
 
 /* ----- STUDY TUTOR — notebook cream, forest, highlighter ----- */
 
-.fs[data-flagship="study-tutor"] {
+.fs[data-flagship="study-tutor"],
+.deskskin[data-flagship="study-tutor"] {
   --canvas: #fbf9f3;
   --surface-1: #ffffff;
   --surface-2: #f2efe6;

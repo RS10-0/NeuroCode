@@ -37,6 +37,7 @@ import RecordsSection from "../features/agents/RecordsSection";
 import ModelSection from "../features/agents/ModelSection";
 import SaveBar from "../features/agents/SaveBar";
 import TestPanel from "../features/agents/TestPanel";
+import FlagshipDesk from "../features/agents/desk/FlagshipDesk";
 import OfflineNotice from "../components/OfflineNotice";
 import { getAgent, listKnowledge } from "../features/agents/agentStore";
 import { fingerprint, type Agent } from "../features/agents/types";
@@ -837,6 +838,29 @@ function Workbench({
         />
 
         <div className="agentwork">
+          {/*
+            A bought agent gets a screen about what it is and
+            what you can give it, not seven tabs of decisions
+            somebody else already made. See FlagshipDesk.
+          */}
+          {official ? (
+            <FlagshipDesk
+              draft={draft}
+              agentId={agentId ?? null}
+              flagshipId={existing?.agent.flagshipId ?? null}
+              knowledge={knowledge}
+              systemBudget={info.requestLimits.maxSystemChars}
+              onKnowledgeChange={replaceKnowledge}
+              index={index.status}
+              indexing={index.indexing}
+              indexError={index.error}
+              dirty={dirty}
+              onReindex={index.reindex}
+              memory={memories}
+            />
+          ) : null}
+
+          {official ? null : (
           <nav className="agentnav" aria-label="Agent sections">
             {/*
              * The strip is a separate element from the nav so
@@ -918,13 +942,8 @@ function Workbench({
               })}
             </div>
           </nav>
+          )}
 
-          {section === "identity" && official ? (
-            <OfficialNotice
-              title="Written by BuildGentic"
-              body="This agent's name, description and instructions are part of what you unlocked. They are maintained by BuildGentic and improve over time — any change made to them reaches your copy automatically."
-            />
-          ) : null}
 
           {section === "identity" && !official ? (
             <IdentitySection
@@ -935,12 +954,6 @@ function Workbench({
             />
           ) : null}
 
-          {section === "model" && official ? (
-            <OfficialNotice
-              title="Tuned by BuildGentic"
-              body="The model and the answering settings were chosen for this agent and tested against it. They are part of what makes it work the way it does."
-            />
-          ) : null}
 
           {section === "model" && !official ? (
             <ModelSection
@@ -955,7 +968,7 @@ function Workbench({
             />
           ) : null}
 
-          {section === "knowledge" ? (
+          {section === "knowledge" && !official ? (
             <KnowledgeSection
               draft={draft}
               knowledge={knowledge}
@@ -969,7 +982,7 @@ function Workbench({
             />
           ) : null}
 
-          {section === "memory" ? (
+          {section === "memory" && !official ? (
             <MemorySection
               draft={draft}
               agentId={agentId ?? null}
@@ -978,7 +991,7 @@ function Workbench({
             />
           ) : null}
 
-          {section === "records" ? (
+          {section === "records" && !official ? (
             <RecordsSection
               draft={draft}
               agentId={agentId ?? null}
@@ -986,7 +999,7 @@ function Workbench({
             />
           ) : null}
 
-          {section === "email" ? (
+          {section === "email" && !official ? (
             <EmailSection
               draft={draft}
               agentId={agentId ?? null}
@@ -994,12 +1007,6 @@ function Workbench({
             />
           ) : null}
 
-          {section === "capabilities" && official ? (
-            <OfficialNotice
-              title="Chosen for this agent"
-              body="Each of BuildGentic's agents has the capabilities its job needs, and only those. Turning one on or off would change what it is."
-            />
-          ) : null}
 
           {section === "capabilities" && !official ? (
             <CapabilitiesSection
@@ -1008,12 +1015,6 @@ function Workbench({
             />
           ) : null}
 
-          {section === "actions" && official ? (
-            <OfficialNotice
-              title="Set up by BuildGentic"
-              body="BuildGentic's own agents reach only the services they were built with. Build your own agent to connect it to something of yours."
-            />
-          ) : null}
 
           {section === "actions" && !official ? (
             <ActionsSection
@@ -1108,28 +1109,6 @@ function Workbench({
         }}
         onCancel={() => setLeaveOpen(false)}
       />
-    </div>
-  );
-}
-
-/*
- * What sits where a form would be, on one of BuildGentic's own
- * agents.
- *
- * A sentence about why, rather than a greyed-out copy of the
- * fields. A disabled form is an invitation with the door shut:
- * it shows a learner exactly what they cannot have and leaves
- * them looking for the reason. This says the reason instead —
- * and, in the identity case, says the thing that makes the
- * restriction a benefit: their copy gets better when BuildGentic
- * improves the original.
- */
-function OfficialNotice({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="agentsec">
-      <Callout tone="info" title={title}>
-        {body}
-      </Callout>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import PublicSite from "./pages/PublicSite";
 import DevActivities from "./pages/DevActivities";
 import DevSites from "./pages/DevSites";
 import DevFlagships from "./pages/DevFlagships";
+import DevDesks from "./pages/DevDesks";
 import DevAiRuntime from "./pages/DevAiRuntime";
 
 import LessonPlayer from "./features/learn/LessonPlayer";
@@ -269,6 +270,17 @@ export default function App() {
 
           {import.meta.env.DEV ? (
             <Route path="/dev/flagships" element={<DevFlagships />} />
+          ) : null}
+
+          {/* The owner's desk for a purchased flagship. Worth a
+              gallery more than the others are: reaching this
+              screen in the product costs an account, a hundred
+              XP and a purchase, which is the friction that let
+              four empty tabs sit on it unnoticed. Same tree
+              shaking. */}
+
+          {import.meta.env.DEV ? (
+            <Route path="/dev/desks" element={<DevDesks />} />
           ) : null}
 
           {/* The AI runtime harness. Behind the auth gate, unlike
