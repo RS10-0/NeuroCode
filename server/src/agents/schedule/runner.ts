@@ -505,6 +505,11 @@ interface Collected {
   inputTokens: number;
   outputTokens: number;
   searched: boolean;
+  /* What the search actually came back with. Kept apart from
+     `searched` because the two answer different questions, and
+     the interesting run is the one where they disagree. */
+  searchResults: number;
+  searchReason: string | null;
   documents: GeneratedDocument[];
   drafts: DraftedEmailEvent[];
 }
@@ -522,6 +527,8 @@ function collector() {
     inputTokens: 0,
     outputTokens: 0,
     searched: false,
+    searchResults: 0,
+    searchReason: null,
     documents: [],
     drafts: [],
   };
@@ -613,6 +620,45 @@ function collector() {
 
         case "web_search":
           state.searched = event.searched;
+          state.searchResults = event.resultCount;
+          state.searchReason = event.reason ?? null;
+
+          /*
+           * Put the search in the trace, and put it there whether
+           * it worked or not.
+           *
+           * The failed case is why this exists. `searchWeb` never
+           * throws — a provider that bot-challenges produces an
+           * empty result and the answer happens anyway — so a run
+           * whose search returned nothing looks, on the row and
+           * in the run card, exactly like a run that had no need
+           * of the web. Zero tool calls, `succeeded`, green.
+           *
+           * The confabulation classifier cannot close that gap
+           * either, and this is the honest limit of what a regex
+           * over the answer can do: its patterns catch an agent
+           * CLAIMING to have acted, and an agent that simply
+           * states invented facts without narrating itself
+           * matches none of them. The evidence that it should not
+           * be believed is not in the prose. It is here.
+           *
+           * Step 0 because a search happens before the loop has
+           * a first step, not because it is one.
+           */
+          if (event.searched) {
+            state.trace.push({
+              step: 0,
+              kind: "search",
+              ok: event.resultCount > 0,
+              summary:
+                event.queries.length > 0
+                  ? `Searched the web for: ${event.queries.join("; ")}`
+                  : "Searched the web.",
+              resultCount: event.resultCount,
+              provider: event.provider,
+              ...(event.reason ? { reason: event.reason } : {}),
+            });
+          }
           break;
 
         case "document": {

@@ -74,7 +74,12 @@ export interface Schedule {
    it — the same events the Test panel's step list renders. */
 export interface TraceEntry {
   step: number;
-  kind: "call" | "result" | "limit";
+  /* `search` is emitted before the loop has a first step — Web
+     Search is decided and performed ahead of the answer, so it
+     produces no call and no result of its own. It is in the
+     trace because a search that came back empty is otherwise
+     invisible: the answer still arrives, fluent and green. */
+  kind: "call" | "result" | "limit" | "search";
   tool?: string;
   args?: Record<string, unknown>;
   ok?: boolean;
@@ -83,6 +88,46 @@ export interface TraceEntry {
   latencyMs?: number;
   truncated?: boolean;
   reason?: string;
+  resultCount?: number;
+  /* `search` only: which provider answered. Shown because a
+     chain falls through silently when a monthly allowance runs
+     out, and "duckduckgo" appearing where "tavily" used to is
+     the first visible sign of it. */
+  provider?: string;
+}
+
+/*
+ * Whether this run looked things up and came back with nothing.
+ *
+ * Worth its own function rather than an inline check, because
+ * the honest reading of it is not obvious: the run SUCCEEDED,
+ * the agent did everything it was asked, and the answer it
+ * produced is nonetheless the one least worth believing —
+ * written from training data on a question whose whole point was
+ * that it needed the live web.
+ */
+export function searchedAndFoundNothing(run: Run): boolean {
+  return run.trace.some(
+    (entry) => entry.kind === "search" && entry.ok === false
+  );
+}
+
+/*
+ * How many pages a successful search put in front of the model,
+ * or null if it did not search or found nothing.
+ *
+ * Needed because Web Search leaves `toolCalls` at zero — it runs
+ * before the loop, so it is not a tool call — and describing a
+ * run that read five pages as one that used none of its tools is
+ * the same failure as the one this whole change is about, just
+ * pointing the other way.
+ */
+export function pagesRead(run: Run): number | null {
+  const search = run.trace.find(
+    (entry) => entry.kind === "search" && entry.ok === true
+  );
+
+  return search ? (search.resultCount ?? 0) : null;
 }
 
 export interface Run {
@@ -332,15 +377,51 @@ export interface OutcomeCopy {
 
 export function outcomeCopy(run: Run): OutcomeCopy {
   switch (run.outcome) {
-    case "succeeded":
+    case "succeeded": {
+      /*
+       * A search that found nothing outranks the tool count, and
+       * it is the one case here that must not read as good news.
+       *
+       * The old copy for a zero-tool run was "Answered without
+       * needing a tool", which asserts something no part of this
+       * system is in a position to know. Whether a tool was
+       * NEEDED is a fact about the question, not about the run.
+       * Said to a fifteen-year-old under a green chip, on an
+       * answer written from training data because the web search
+       * came back empty, it is worse than saying nothing: it
+       * talks them out of the doubt they should have had.
+       */
+      if (searchedAndFoundNothing(run)) {
+        return {
+          label: "Ran",
+          tone: "caution",
+          meaning:
+            "It searched the web and got nothing back, then answered from memory. " +
+            "Anything in here that sounds like news — dates, numbers, events — was not looked up. Check it before you trust it.",
+        };
+      }
+
+      const pages = pagesRead(run);
+      const steps =
+        run.toolCalls > 0
+          ? `${run.toolCalls} tool ${run.toolCalls === 1 ? "step" : "steps"}`
+          : null;
+      const web =
+        pages !== null ? `${pages} ${pages === 1 ? "page" : "pages"} from the web` : null;
+
       return {
         label: "Ran",
         tone: "correct",
         meaning:
-          run.toolCalls > 0
-            ? `Used ${run.toolCalls} tool ${run.toolCalls === 1 ? "step" : "steps"}.`
-            : "Answered without needing a tool.",
+          web && steps
+            ? `Read ${web}, then used ${steps}.`
+            : web
+              ? `Read ${web}.`
+              : steps
+                ? `Used ${steps}.`
+                : "Answered straight away, without using any of its tools.",
       };
+    }
 
     case "limit_reached":
       return {

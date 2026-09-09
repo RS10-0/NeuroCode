@@ -53,7 +53,7 @@ read — improving a prompt improves it for everybody who already owns it.
   walks the list from the top and falls through on failure or rate limit:
   Groq → Cloudflare → OpenRouter → Mistral, plus Gemini, and an offline
   Mock provider so the app runs with no keys at all.
-- **Web search** — Brave, Tavily or DuckDuckGo, with a Mock provider
+- **Web search** — Tavily, Brave or DuckDuckGo, with a Mock provider
 - **Email** — Resend, for scheduled-run notifications
 
 The routing policy is `server/src/ai/providerChain.ts` and nothing else —

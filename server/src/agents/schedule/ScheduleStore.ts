@@ -118,7 +118,20 @@ export interface RunRecord {
  */
 export interface TraceEntry {
   step: number;
-  kind: "call" | "result" | "limit";
+  /*
+   * `search` is not a step of the action loop, and that is the
+   * whole reason it has to be in here.
+   *
+   * Web Search is decided and performed BEFORE the loop starts,
+   * so it emits no tool_call and no tool_result and leaves the
+   * trace completely empty. A run that searched, found nothing,
+   * and answered from training data was therefore indis-
+   * tinguishable on the row from one that never needed the web
+   * at all — while being the single most misleading thing this
+   * feature can produce, because the answer still arrives
+   * fluent, confident and green.
+   */
+  kind: "call" | "result" | "limit" | "search";
   tool?: string;
   args?: Record<string, unknown>;
   ok?: boolean;
@@ -127,6 +140,14 @@ export interface TraceEntry {
   latencyMs?: number;
   truncated?: boolean;
   reason?: string;
+  /* `search` only: what the provider returned, before the
+     context budget decided how much of it fit. */
+  resultCount?: number;
+  /* `search` only: which provider actually answered. Not always
+     the one configured first — a chain falls through when an
+     allowance runs out, and this is where that becomes visible
+     rather than something an operator infers from a bill. */
+  provider?: string;
 }
 
 export interface ClaimedSchedule {

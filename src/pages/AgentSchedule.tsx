@@ -10,6 +10,7 @@ import {
   Play,
   Plus,
   Trash2,
+  Globe,
   Wrench,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ import {
   localTimezone,
   outcomeCopy,
   runNow,
+  searchedAndFoundNothing,
   updateSchedule,
   type Cadence,
   type Run,
@@ -435,22 +437,43 @@ function RunCard({
                   {run.trace.map((entry, index) => (
                     <li
                       key={`${entry.step}-${entry.kind}-${index}`}
-                      className={`runtrace__item runtrace__item--${entry.kind}`}
+                      className={`runtrace__item runtrace__item--${entry.kind}${
+                        entry.kind === "search" && entry.ok ? " is-ok" : ""
+                      }`}
                     >
-                      <Wrench size={12} aria-hidden="true" />
+                      {entry.kind === "search" ? (
+                        <Globe size={12} aria-hidden="true" />
+                      ) : (
+                        <Wrench size={12} aria-hidden="true" />
+                      )}
                       <span className="runtrace__tool">
-                        {entry.tool ?? (entry.kind === "limit" ? "step limit" : "unreadable action")}
+                        {entry.kind === "search"
+                          ? entry.provider
+                            ? `web search (${entry.provider})`
+                            : "web search"
+                          : (entry.tool ??
+                            (entry.kind === "limit" ? "step limit" : "unreadable action"))}
                       </span>
                       <span className="runtrace__detail">
-                        {entry.kind === "call"
-                          ? "asked to run"
-                          : entry.kind === "limit"
-                            ? entry.reason === "budget"
-                              ? "no room left for more tool output"
-                              : "used all 4 steps"
-                            : entry.ok
-                              ? entry.summary
-                              : entry.error}
+                        {entry.kind === "search"
+                          ? entry.ok
+                            ? `read ${entry.resultCount ?? 0} ${
+                                entry.resultCount === 1 ? "page" : "pages"
+                              }`
+                            : /* The line this whole change exists to
+                                 print. Says what happened and what it
+                                 means, because "no_results" means
+                                 nothing to the person reading it. */
+                              "found nothing — everything below is from memory, not the web"
+                          : entry.kind === "call"
+                            ? "asked to run"
+                            : entry.kind === "limit"
+                              ? entry.reason === "budget"
+                                ? "no room left for more tool output"
+                                : "used all 4 steps"
+                              : entry.ok
+                                ? entry.summary
+                                : entry.error}
                       </span>
                     </li>
                   ))}
@@ -503,6 +526,27 @@ function ScheduleCard({
     !schedule.enabled &&
     schedule.disabledReason !== null &&
     schedule.disabledReason !== "owner";
+
+  /*
+   * How many of the most recent runs searched and came back
+   * empty-handed, counting from the newest until the streak
+   * breaks.
+   *
+   * A streak rather than a total, for the same reason the breaker
+   * counts consecutive failures: a schedule that had two bad days
+   * last month and has been fine since is not a schedule anybody
+   * needs warning about, and saying so anyway is how a banner
+   * becomes wallpaper.
+   */
+  let blindRuns = 0;
+
+  for (const run of runs) {
+    if (!searchedAndFoundNothing(run)) {
+      break;
+    }
+
+    blindRuns += 1;
+  }
 
   return (
     <Panel
@@ -632,6 +676,37 @@ function ScheduleCard({
       </div>
 
       <h3 className="schedruns__title">Run history</h3>
+
+      {blindRuns >= 2 ? (
+        /*
+         * The pattern, not the incident.
+         *
+         * One search that came back empty is a bad afternoon at
+         * the provider. Two in a row, on a schedule that runs
+         * unattended, is a standing arrangement to email somebody
+         * invented facts on a timer — and nothing else in this
+         * page would say so, because every one of those runs
+         * succeeded and is sitting there in green.
+         *
+         * It warns rather than disables. The breaker exists for
+         * runs the system can prove went wrong; this one it can
+         * only prove went UNINFORMED, and switching off a
+         * learner's schedule over an inference is a heavier hand
+         * than the evidence supports.
+         */
+        <p className="schedruns__warning" role="status">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>
+            <strong>
+              The last {blindRuns} runs searched the web and found nothing.
+            </strong>{" "}
+            This task needs live information and is not getting any, so the
+            answers are being written from memory — they will look confident and
+            may be entirely made up. Worth fixing before you rely on this
+            schedule.
+          </span>
+        </p>
+      ) : null}
 
       {runs.length === 0 ? (
         <p className="schedruns__empty">

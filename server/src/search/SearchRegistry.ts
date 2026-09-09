@@ -1,4 +1,4 @@
-import { searchProviderId } from "../ai/config";
+import { searchChainIds, searchProviderId } from "../ai/config";
 import { AiRuntimeError } from "../ai/errors";
 import type { SearchProvider, SearchProviderId } from "./types";
 
@@ -52,4 +52,41 @@ export function activeSearchProvider(): SearchProvider {
   const configured = getSearchProvider(searchProviderId);
 
   return configured.isConfigured() ? configured : getSearchProvider("mock");
+}
+
+/*
+ * Every provider that may be asked, in the order to ask them.
+ *
+ * The chain exists because a free search tier is an allowance,
+ * and an allowance runs out. When Tavily's month is spent it
+ * answers 429 — and a search that fails does not fail the run:
+ * the agent answers from training data instead, fluently and
+ * with no idea it is doing so. Falling through to DuckDuckGo
+ * gives a worse answer than Tavily and a far better one than
+ * an invented one.
+ *
+ * Only entries that can actually answer are returned, so the
+ * caller's loop never has to ask "is this one real". An entry
+ * whose key is missing is dropped here rather than attempted
+ * and failed, which is what keeps a missing key costing zero
+ * round trips — the same promise `isConfigured` makes in the
+ * single-provider path.
+ *
+ * An empty result falls back to the mock for the reason
+ * `activeSearchProvider` does: a learner who switched this
+ * capability on should get something honest and offline rather
+ * than an error they cannot act on.
+ */
+export function searchChain(): SearchProvider[] {
+  const chain: SearchProvider[] = [];
+
+  for (const id of searchChainIds) {
+    const provider = getSearchProvider(id);
+
+    if (provider.isConfigured()) {
+      chain.push(provider);
+    }
+  }
+
+  return chain.length > 0 ? chain : [getSearchProvider("mock")];
 }

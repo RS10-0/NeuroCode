@@ -61,6 +61,12 @@ const API = process.env.API_BASE ?? "http://localhost:3001";
 const MOCK_PORT = Number(process.env.MOCK_PORT ?? 3011);
 const MOCK_API = `http://localhost:${MOCK_PORT}`;
 
+/* And one more, whose search provider chain is two deep with a
+   dead credential at the front — the only way to observe a
+   fallthrough without waiting for a real allowance to run out. */
+const CHAIN_PORT = Number(process.env.CHAIN_PORT ?? 3012);
+const CHAIN_API = `http://localhost:${CHAIN_PORT}`;
+
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -465,6 +471,66 @@ function said(answer: StreamedAnswer, length = 100): string {
 
 let mockServer: ChildProcess | null = null;
 
+/*
+ * Every instance this script starts, so the teardown can kill
+ * all of them.
+ *
+ * There is more than one now: the chain section needs a server
+ * whose search configuration differs from the offline one's, and
+ * a chain is only observable across two providers, so it cannot
+ * borrow the mock instance.
+ */
+const spawnedServers: ChildProcess[] = [];
+
+async function startServerOn(
+  port: number,
+  searchEnv: Record<string, string>,
+  label: string
+): Promise<ChildProcess | null> {
+  const child = spawn("npx", ["tsx", "src/index.ts"], {
+    cwd: "server",
+    env: {
+      ...process.env,
+      PORT: String(port),
+      ...searchEnv,
+    },
+    shell: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  spawnedServers.push(child);
+
+  /* Kept, not printed: a crashed child that says nothing is a
+     failure nobody can diagnose. */
+  let log = "";
+
+  child.stdout?.on("data", (chunk) => {
+    log += String(chunk);
+  });
+
+  child.stderr?.on("data", (chunk) => {
+    log += String(chunk);
+  });
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await sleep(500);
+
+    try {
+      const response = await fetch(`http://localhost:${port}/api/health`);
+
+      if (response.ok) {
+        return child;
+      }
+    } catch {
+      /* Not up yet. */
+    }
+  }
+
+  console.log(`\nThe ${label} instance did not start. Its output was:\n${log}`);
+
+  return null;
+}
+
 async function startMockServer(): Promise<boolean> {
   mockServer = spawn("npx", ["tsx", "src/index.ts"], {
     cwd: "server",
@@ -476,6 +542,8 @@ async function startMockServer(): Promise<boolean> {
     shell: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
+
+  spawnedServers.push(mockServer);
 
   /* Kept, not printed: a crashed child that says nothing is a
      failure nobody can diagnose. */
@@ -509,20 +577,23 @@ async function startMockServer(): Promise<boolean> {
 }
 
 function stopMockServer() {
-  if (!mockServer?.pid) {
-    return;
+  for (const child of spawnedServers) {
+    if (!child.pid) {
+      continue;
+    }
+
+    if (process.platform === "win32") {
+      /* `shell: true` means the child is a shell whose own child
+         is the server; killing the shell alone orphans it. */
+      spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+        stdio: "ignore",
+      });
+    } else {
+      child.kill("SIGTERM");
+    }
   }
 
-  if (process.platform === "win32") {
-    /* `shell: true` means the child is a shell whose own child
-       is the server; killing the shell alone orphans it. */
-    spawnSync("taskkill", ["/pid", String(mockServer.pid), "/T", "/F"], {
-      stdio: "ignore",
-    });
-  } else {
-    mockServer.kill("SIGTERM");
-  }
-
+  spawnedServers.length = 0;
   mockServer = null;
 }
 
@@ -1634,6 +1705,119 @@ async function checkAlongsideRetrieval(learner: Learner) {
 }
 
 /* ---------------------------------------------------------
+   17. THE PROVIDER CHAIN
+
+   What happens when the provider at the front of the chain
+   cannot answer.
+
+   This is not a hypothetical. Every free search tier is a
+   monthly allowance, and the run after the allowance is spent
+   does not fail loudly: a dead search returns an empty result,
+   the agent answers from training data, and the answer is
+   confident and wrong. The chain is what turns that cliff into
+   a slope, and this section is what proves the slope exists.
+   --------------------------------------------------------- */
+
+async function checkChain(learner: Learner) {
+  /*
+   * `model = "web-search"` is what separates the two kinds of
+   * row that share the `agent_web_search` feature.
+   *
+   * Both are real calls and both belong on the ledger, but only
+   * one of them is a search: the other is the small model call
+   * that decides whether to search at all, and it carries a
+   * model provider's name and real tokens. Counting both was
+   * this section's first draft, and it reported the chain as
+   * spending two rows per query when the second row was the
+   * planner doing its job — the assertion was wrong, not the
+   * runtime.
+   */
+  const before = await admin
+    .from("ai_usage")
+    .select("id")
+    .eq("user_id", learner.id)
+    .eq("feature", "agent_web_search")
+    .eq("model", "web-search");
+
+  const agent = await makeAgent(
+    learner,
+    "Chain Fallthrough Helper",
+    FERNWICK_INSTRUCTIONS
+  );
+
+  const answer = await ask(
+    learner,
+    agent,
+    FERNWICK_INSTRUCTIONS,
+    "What does Fernwick University currently require from first-year applicants, and when is the deadline?",
+    {},
+    CHAIN_API
+  );
+
+  check(
+    "a dead provider at the front of the chain still produces an answer",
+    answer.status === 200 && answer.text.trim().length > 0,
+    said(answer, 120)
+  );
+
+  /*
+   * The assertion the section exists for. Tavily was configured,
+   * was really called, and really failed on its bogus key — and
+   * the turn was answered anyway, by the next provider along.
+   */
+  check(
+    "it falls through to the next provider",
+    answer.web?.provider === "mock",
+    `provider=${answer.web?.provider ?? "-"}, searched=${answer.web?.searched}`
+  );
+
+  check(
+    "and the fallback's results actually reach the answer",
+    (answer.web?.sources.length ?? 0) > 0,
+    `${answer.web?.sources.length ?? 0} sources`
+  );
+
+  /*
+   * One ledger row per query, not one per attempt.
+   *
+   * A learner whose first provider is dead must not spend two
+   * slots of their own search window to get one answer — their
+   * failovers would rate-limit them, which is the opposite of
+   * what a fallback is for. The chain therefore lives inside a
+   * single admission, and this counts the rows to prove it.
+   */
+  const after = await admin
+    .from("ai_usage")
+    .select("id, provider_id, ok")
+    .eq("user_id", learner.id)
+    .eq("feature", "agent_web_search")
+    .eq("model", "web-search");
+
+  const added = (after.data?.length ?? 0) - (before.data?.length ?? 0);
+  const queries = answer.web?.queries.length ?? 0;
+
+  check(
+    "a fallthrough costs one usage row per query, not one per attempt",
+    queries > 0 && added === queries,
+    `${added} rows added for ${queries} quer${queries === 1 ? "y" : "ies"}`
+  );
+
+  /*
+   * And the row names who answered, not who was asked first.
+   * `admit` predicted tavily; `finish` corrected it. Without
+   * that correction the ledger would say a provider served a
+   * request it actually refused.
+   */
+  const fresh = (after.data ?? []).slice(-Math.max(1, queries));
+
+  check(
+    "the ledger names the provider that answered",
+    fresh.length > 0 && fresh.every((row) => row.provider_id === "mock"),
+    fresh.map((row) => `${row.provider_id}/${row.ok}`).join(", ") || "no rows"
+  );
+}
+
+/* ---------------------------------------------------------
    11. THE OFFLINE INSTANCE — DETERMINISTIC CASES
 
    Everything the live web cannot be asked to do on demand.
@@ -1798,9 +1982,23 @@ async function checkOffline(learner: Learner) {
    */
   const plainQuotes = broken.text.replace(/[‘’ʼ]/g, "'");
 
+  /*
+   * The same bug as the paragraph above, one layer down.
+   *
+   * Normalising the apostrophe was not enough: `not able to`
+   * cannot match "wasn't able to", because the characters
+   * between the n and the t are an apostrophe and a t, not an o
+   * and a t. So an answer that said precisely what this check
+   * asks for — "I wasn't able to check the web" — was reported
+   * as a wording failure for the second time, by a regex written
+   * to fix the first one. Matching the contraction directly is
+   * what closes it.
+   */
   check(
     "and it says it could not check",
-    /could not|couldn't|unable to|no current|not able to/i.test(plainQuotes),
+    /could not|couldn't|unable to|no current|not able to|n't able to|no access to/i.test(
+      plainQuotes
+    ),
     said(broken, 200)
   );
 
@@ -2060,6 +2258,30 @@ async function main() {
       await checkOffline(offlineLearner);
     } else {
       check("the offline instance starts", false, `port ${MOCK_PORT}`);
+    }
+
+    section("17. PROVIDER CHAIN");
+    console.log("  starting a third instance with a dead provider in front…");
+
+    const chained = await startServerOn(
+      CHAIN_PORT,
+      {
+        /* Tavily first with a key that cannot work, then the
+           offline corpus. Tavily is `isConfigured` because the
+           key is present, so it is really attempted and really
+           fails — which is the whole point. A missing key would
+           be dropped by `searchChain` before any round trip and
+           would prove nothing about falling through. */
+        NEUROLINK_WEB_SEARCH_CHAIN: "tavily,mock",
+        NEUROLINK_TAVILY_API_KEY: "tvly-not-a-real-key-for-verification",
+      },
+      "chain"
+    );
+
+    if (chained) {
+      await checkChain(offlineLearner);
+    } else {
+      check("the chain instance starts", false, `port ${CHAIN_PORT}`);
     }
   } finally {
     stopMockServer();
