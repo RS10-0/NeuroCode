@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import { Field, Input, Textarea } from "../../components/ui";
 import AgentFace from "./AgentFace";
 import type { AgentErrors } from "./validate";
@@ -63,6 +65,17 @@ export default function IdentitySection({
       </div>
 
       <div className="agentsec__body">
+        {/*
+          The avatar picker.
+
+          Both groups used to be bare <fieldset>s, which meant
+          the browser drew its own grooved border and legend
+          notch around each — the one piece of unstyled chrome on
+          the screen, and the thing that made this block look
+          like a 1998 form. `.pickset` resets that; the grouping
+          it was there for is kept by the legend and the
+          radiogroup role, which is where it belonged anyway.
+        */}
         <div className="agentid">
           <div className="agentid__preview">
             <AgentFace
@@ -70,12 +83,12 @@ export default function IdentitySection({
               tone={draft.avatarTone}
               size="lg"
             />
-            <p className="meta">Preview</p>
+            <p className="agentid__previewlabel">Preview</p>
           </div>
 
           <div className="agentid__pickers">
-            <fieldset className="stack gap-2">
-              <legend className="field__label">Symbol</legend>
+            <fieldset className="pickset">
+              <legend className="pickset__label">Symbol</legend>
 
               <div className="glyphs" role="radiogroup" aria-label="Symbol">
                 {AVATAR_GLYPHS.map((glyph) => (
@@ -101,8 +114,8 @@ export default function IdentitySection({
               </div>
             </fieldset>
 
-            <fieldset className="stack gap-2">
-              <legend className="field__label">Colour</legend>
+            <fieldset className="pickset">
+              <legend className="pickset__label">Colour</legend>
 
               <div className="tones" role="radiogroup" aria-label="Colour">
                 {AVATAR_TONES.map((tone) => (
@@ -116,15 +129,21 @@ export default function IdentitySection({
                         ? "tones__item tones__item--on"
                         : "tones__item"
                     }
+                    /* The chip wears the colour it is offering,
+                       so the choice is legible before it is
+                       made rather than only after. */
+                    style={
+                      {
+                        "--tone": `var(--${tone.id})`,
+                        "--tone-bg": `var(--${tone.id}-bg)`,
+                        "--tone-rule": `var(--${tone.id}-rule)`,
+                      } as CSSProperties
+                    }
                     onClick={() =>
                       onChange({ avatarTone: tone.id as AvatarTone })
                     }
                   >
-                    <span
-                      className="tones__swatch"
-                      style={{ background: `var(--${tone.id})` }}
-                      aria-hidden="true"
-                    />
+                    <span className="tones__swatch" aria-hidden="true" />
                     {tone.label}
                   </button>
                 ))}

@@ -3,6 +3,7 @@ import type { Response } from "express";
 
 import { requireUser } from "../lib/auth";
 import { getAgent } from "../agents/AgentStore";
+import { mayHoldRestricted } from "../agents/restrictedAccess";
 import {
   createFlagshipAgent,
   findFlagshipAgentId,
@@ -28,6 +29,7 @@ import { starterConfig } from "../../../src/features/sites/templates";
 import type { TemplateId } from "../../../src/features/sites/schema";
 import {
   FLAGSHIPS,
+  flagshipRestricted,
   findFlagship,
   flagshipPrice,
 } from "../../../src/features/agents/flagships";
@@ -103,6 +105,25 @@ libraryRouter.get("/", async (req, res) => {
     const ownedSet = new Set(owned);
 
     /*
+     * A restricted agent is SENT and marked, not withheld.
+     *
+     * An earlier version filtered these out of the response
+     * entirely, on the principle that a card the browser is
+     * trusted not to draw is one bug away from being drawn.
+     * That principle is right when the existence of the thing
+     * is the secret. Here it is not: the Library shows Email
+     * Agent to everybody as an unreleased card, so the client
+     * is being asked to draw it rather than to hide it, and a
+     * flag is exactly the right shape.
+     *
+     * What is NOT a display concern, and has not moved, is the
+     * purchase. `POST /:flagshipId/unlock` refuses a restricted
+     * agent for anyone not in NEUROLINK_RESTRICTED_OWNERS
+     * whatever this response says, so a client that ignored
+     * the flag entirely could still not buy one.
+     */
+
+    /*
      * The agent row behind each unlock, so a card can link
      * straight to it. Null for an entitlement whose agent was
      * deleted, which the Library renders as "Add again" rather
@@ -133,6 +154,9 @@ libraryRouter.get("/", async (req, res) => {
         hasSeededKnowledge: entry.hasSeededKnowledge,
         owned: ownedSet.has(entry.id),
         agentId: agentByFlagship.get(entry.id) ?? null,
+        /* Not for sale. The card draws itself as unreleased;
+           the unlock endpoint is what actually refuses. */
+        restricted: flagshipRestricted(entry.id),
       })),
     });
   } catch (error) {
@@ -171,6 +195,37 @@ libraryRouter.post("/:flagshipId/unlock", async (req, res) => {
       code: "not_found",
     });
     return;
+  }
+
+  /*
+   * A restricted agent is not for sale, and THIS is the refusal
+   * that counts — the listing above only decides what gets
+   * drawn, and this id is a string in a URL anybody can type.
+   *
+   * It answers in plain words rather than pretending the agent
+   * does not exist. An earlier version returned the unknown-id
+   * 404 so that probing could not confirm the agent was real;
+   * that stopped being worth anything the moment the Library
+   * began showing it to everybody as an unreleased card. With
+   * the existence public, a truthful message is strictly better
+   * than a misleading one — it tells somebody who clicked why
+   * nothing happened.
+   *
+   * Somebody who already holds the entitlement is let through,
+   * so a re-add after deleting their copy still works. That
+   * path charges nothing and builds against an unlock they
+   * already have.
+   */
+  if (flagshipRestricted(flagship.id) && !mayHoldRestricted(user)) {
+    const held = await listUnlocks(user.id);
+
+    if (!held.includes(flagship.id)) {
+      res.status(400).json({
+        error: `${flagship.name} is not released yet, so it cannot be unlocked.`,
+        code: "invalid_request",
+      });
+      return;
+    }
   }
 
   try {

@@ -37,6 +37,16 @@ export interface LibraryAgent {
   /* Holds the entitlement. Survives deleting the agent. */
   owned: boolean;
   /*
+   * Not released, and therefore not for sale.
+   *
+   * The card draws itself as a coming-soon placeholder rather
+   * than as something to buy. This is a display hint and
+   * nothing more — the unlock endpoint refuses a restricted
+   * agent on its own authority, so a client that ignored this
+   * entirely would still be told no.
+   */
+  restricted?: boolean;
+  /*
    * The agent row behind the entitlement, when there is one.
    *
    * Null for somebody who owns a flagship and deleted their

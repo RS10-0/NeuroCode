@@ -59,10 +59,16 @@ function isGroup(entry: NavEntry): entry is NavGroup {
  * is there to teach:
  *
  *   Agent Builder — the workshop. Where an agent is made.
- *   My Agents     — the shelf. Where the finished ones live.
  *   Agent Library — the shop. Where BuildGentic's own agents are,
  *                   for learners who want a good one before
  *                   they can build a good one.
+ *   My Agents     — the shelf. Where the finished ones live.
+ *
+ * The shop sits above the shelf because for most of a learner's
+ * first week the shelf is empty, and a destination that is
+ * empty every time you open it teaches you to stop opening it.
+ * The order is build it, buy one, then keep them — which is
+ * also the order they will be used in.
  *
  * Everything else stays a flat top-level destination. Grouping
  * for its own sake would push Dashboard and Courses a level down
@@ -88,18 +94,18 @@ const NAV: NavEntry[] = [
         icon: Hammer,
       },
       {
+        to: "/agents/library",
+        label: "Agent Library",
+        shortLabel: "Library",
+        icon: Sparkles,
+      },
+      {
         to: "/agents",
         label: "My Agents",
         shortLabel: "Agents",
         icon: Bot,
         /* See NavItem.end. */
         end: true,
-      },
-      {
-        to: "/agents/library",
-        label: "Agent Library",
-        shortLabel: "Library",
-        icon: Sparkles,
       },
     ],
   },

@@ -767,15 +767,60 @@ function Workbench({
                 size="md"
               />
 
-              <span
-                className={
-                  draft.name.trim()
-                    ? "agenthead__name"
-                    : "agenthead__name agenthead__name--empty"
-                }
-              >
-                {draft.name.trim() || "Untitled agent"}
-              </span>
+              {/*
+                The title IS the name field.
+
+                It used to be a span echoing a text input three
+                screens down, which meant the most obvious place
+                to name an agent was the one place that would not
+                take a name. Typing here patches the same draft
+                the Identity tab does — one value, two ways in.
+
+                The wrapper carries the text a second time in a
+                data attribute so the input can size itself to
+                what is in it; an input has no intrinsic width
+                and would otherwise be a full-width box under a
+                three-word name.
+
+                A BuildGentic-owned agent keeps the plain span:
+                its identity is not the owner's to rewrite, which
+                is the same reason its Identity tab is not there.
+              */}
+              {official ? (
+                <span className="agenthead__name">{draft.name.trim()}</span>
+              ) : (
+                <span
+                  className="agentname"
+                  data-value={draft.name || "Untitled agent"}
+                >
+                  <input
+                    className="agentname__input"
+                    value={draft.name}
+                    placeholder="Untitled agent"
+                    maxLength={80}
+                    /* An input's default width is twenty
+                       characters, and in the sizing grid that
+                       is a floor the text cannot get under —
+                       a two-word name would sit in a box built
+                       for a sentence. One character hands the
+                       measurement back to the pseudo-element. */
+                    size={1}
+                    spellCheck={false}
+                    aria-label="Agent name"
+                    /*
+                       Deliberately not marked invalid here.
+                       "Needs a name" is true of every agent
+                       for its first few seconds, and a red box
+                       around the page title on arrival reads as
+                       something having gone wrong. The Name
+                       field says it, with the sentence that
+                       explains it, and the tab carries a dot.
+                    */
+                    title="Click to rename"
+                    onChange={(event) => patch({ name: event.target.value })}
+                  />
+                </span>
+              )}
             </h1>
 
             <p className="agenthead__lede">

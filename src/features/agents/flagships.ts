@@ -100,6 +100,34 @@ export interface Flagship {
    * honest fix is not to publish one.
    */
   publishable?: boolean;
+
+  /*
+   * Whether this agent is offered to learners at all.
+   *
+   * Separate from `publishable`, and the two must not be
+   * collapsed into one flag even though only Email Agent sets
+   * either today. `publishable` answers "may this be given a
+   * public page"; this one answers "may this be bought". An
+   * agent that is worth selling and must never have a page is a
+   * perfectly coherent thing, and folding the questions
+   * together would make it unrepresentable.
+   *
+   * Restricted means the Library never lists it and the unlock
+   * endpoint refuses it — for everybody except the addresses in
+   * `NEUROLINK_RESTRICTED_OWNERS`, which is a server-side env
+   * var and never reaches the browser. Email Agent is
+   * restricted because it is built around one person's real
+   * mailbox: it is not a product a stranger can be sold, and
+   * the honest thing is not to offer it rather than to offer it
+   * and disappoint.
+   *
+   * THE FLAG ITSELF IS PUBLIC AND THAT IS FINE. This file ships
+   * in the bundle, so `restricted: true` is readable by anyone
+   * — it says an agent exists and is not for sale, which is not
+   * a secret. WHO may have it is the part that stays on the
+   * server, and it is not in this file.
+   */
+  restricted?: boolean;
 }
 
 /* =========================================================
@@ -513,8 +541,10 @@ export const FLAGSHIPS: Flagship[] = [
     /* Ships with triage criteria, tone-rewriting rules and how
        to write a reply somebody will actually send. */
     hasSeededKnowledge: true,
-    /* See `publishable` on the interface above. */
+    /* See `publishable` and `restricted` on the interface
+       above. Not for sale, and not to be given a page. */
     publishable: false,
+    restricted: true,
   },
 ];
 
@@ -575,4 +605,21 @@ export function flagshipPublishable(id: string | null | undefined): boolean {
   }
 
   return BY_ID.get(id)?.publishable !== false;
+}
+
+/*
+ * Whether an agent is withheld from the Library.
+ *
+ * Defaults to FALSE for an id this build does not recognise,
+ * which looks like the opposite of the safe answer and is the
+ * right one. The question here is only "should the Library
+ * hide this card", and a retired entry has no card to hide;
+ * the purchase itself is already refused for an unknown id
+ * because `flagshipPrice` returns null for it.
+ *
+ * Who may bypass this is NOT decided here — this file ships to
+ * the browser. See `mayHoldRestricted` on the server.
+ */
+export function flagshipRestricted(id: string | null | undefined): boolean {
+  return Boolean(id && BY_ID.get(id)?.restricted === true);
 }

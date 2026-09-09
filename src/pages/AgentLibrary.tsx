@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Boxes, Check, Lock, Sparkles, Zap } from "lucide-react";
+import { Boxes, Check, Clock, Lock, Sparkles, Zap } from "lucide-react";
 
 import { Badge, Button, Callout, Dialog, Skeleton, useToast } from "../components/ui";
 import AgentFace from "../features/agents/AgentFace";
@@ -280,8 +280,26 @@ function LibraryCard({
   const affordable = balance === null || balance >= agent.xpCost;
   const short = balance !== null ? agent.xpCost - balance : 0;
 
+  /*
+   * Unreleased. Shown to everybody, purchasable by nobody.
+   *
+   * The card stays on the grid rather than being withheld —
+   * knowing an agent is coming is worth more than a gap where
+   * it would be — but every affordance on it goes: no link on
+   * the name, no price to compare, no button to press. What is
+   * left says "Coming soon" and nothing else, so there is
+   * nothing to try and nothing to be disappointed by.
+   *
+   * `restricted` is a display hint. The refusal that matters is
+   * the unlock endpoint's, which does not consult this.
+   */
+  const unreleased = agent.restricted === true;
+
   return (
-    <li className="agentcard agentcard--official">
+    <li
+      className="agentcard agentcard--official"
+      data-unreleased={unreleased ? "true" : undefined}
+    >
       <div className="agentcard__head">
         <AgentFace
           emoji={agent.avatarEmoji}
@@ -291,7 +309,7 @@ function LibraryCard({
 
         <div className="agentcard__text">
           <h3 className="agentcard__name">
-            {agent.owned && agent.agentId ? (
+            {agent.owned && agent.agentId && !unreleased ? (
               <Link to={`/agents/${agent.agentId}`}>{agent.name}</Link>
             ) : (
               agent.name
@@ -328,12 +346,29 @@ function LibraryCard({
 
       <div className="agentcard__foot">
         <span className="library__price">
-          <Zap size={13} aria-hidden="true" />
-          {agent.xpCost} XP
+          {unreleased ? (
+            /* No price on something that cannot be bought. A
+               number here would be an offer. */
+            <span className="library__soonprice">Not yet available</span>
+          ) : (
+            <>
+              <Zap size={13} aria-hidden="true" />
+              {agent.xpCost} XP
+            </>
+          )}
         </span>
 
         <div className="agentcard__actions">
-          {agent.owned && agent.agentId ? (
+          {unreleased ? (
+            /* A span, not a disabled button. There is no action
+               here to be disabled — a greyed-out control invites
+               a click and then refuses it, which is worse than
+               plainly not offering one. */
+            <span className="library__soon">
+              <Clock size={14} aria-hidden="true" />
+              Coming soon
+            </span>
+          ) : agent.owned && agent.agentId ? (
             /*
              * A real anchor rather than a button, so it
              * middle-clicks into a new tab the way the agent's

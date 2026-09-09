@@ -985,10 +985,25 @@
   background: var(--surface-1);
 }
 
+/*
+ * Three columns, and the middle one is the only one that
+ * gives.
+ *
+ * The row used to be a flex line of three inline spans, which
+ * meant the title and the description ran together on one
+ * line and the description — nowrap, with an ellipsis that
+ * inline boxes ignore — slid underneath the badge and the
+ * duration until the list clipped it at its own border. A
+ * grid with an explicit `minmax(0, 1fr)` body column is what
+ * stops that: the text column can shrink, the index and the
+ * meta rail never do, and nothing can reach into a neighbour.
+ */
 .lesson-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "index body meta";
   align-items: center;
-  gap: var(--space-4);
+  column-gap: var(--space-4);
 
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--rule);
@@ -1019,6 +1034,7 @@
 }
 
 .lesson-row__index {
+  grid-area: index;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -1047,39 +1063,100 @@
 }
 
 .lesson-row__body {
-  flex: 1;
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
 
 .lesson-row__title {
+  display: block;
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
   color: var(--ink);
-  margin-bottom: 2px;
 }
 
+/* Two lines, then an ellipsis — enough for every description
+   the curriculum ships, and a hard ceiling on the row height
+   for any that grow. Clamping needs a block box; as an inline
+   span this rule did nothing at all. */
 .lesson-row__sub {
-  font-size: var(--text-sm);
-  color: var(--ink-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The meta rail: state above, cost below, both flush right.
+ *
+ * Stacked rather than strung along one line so a badge and a
+ * duration can never compete for the same horizontal space,
+ * and so the right edge of every row lines up down the list.
+ */
+.lesson-row__meta {
+  grid-area: meta;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+
+  text-align: right;
   white-space: nowrap;
 }
 
-.lesson-row__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-shrink: 0;
+/* The trailing chevron on a navigation row, which is the whole
+   meta rail rather than something beside it. */
+.lesson-row__go {
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.lesson-row:hover .lesson-row__go {
+  transform: translateX(2px);
+  color: var(--ink-secondary);
 }
 
 @media (max-width: 700px) {
+  /*
+   * Narrow: the meta rail drops below the description and
+   * reads left to right, aligned to the text rather than the
+   * number. The description stays — hiding it was how this
+   * row used to survive the squeeze, and it cost the learner
+   * the only sentence saying what the lesson is.
+   */
   .lesson-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "index body"
+      ".     meta";
+    row-gap: var(--space-3);
     padding: var(--space-4);
   }
 
-  .lesson-row__sub {
-    display: none;
+  .lesson-row__meta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    text-align: left;
+  }
+
+  /* A navigation row has a chevron, not a stack — keep it in
+     the trailing column at every width. */
+  .lesson-row--nav {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "index body meta";
+    row-gap: 0;
   }
 }
 

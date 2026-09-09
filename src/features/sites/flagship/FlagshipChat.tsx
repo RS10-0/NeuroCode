@@ -74,6 +74,22 @@ export interface FlagshipChatProps {
   opening?: ReactNode;
   /* Beside each turn: a folio number, a prompt glyph, a rule. */
   mark?: (turn: SiteTurn, index: number) => ReactNode;
+  /*
+   * Under a turn's body, inside it — controls that act on the
+   * answer rather than decorate it.
+   *
+   * `mark` draws in the gutter and is for ornament, which is
+   * why it is wrapped in `aria-hidden`. This is the opposite
+   * slot: what it returns is real content and really focusable,
+   * so it goes inside the body, after the words it belongs to,
+   * and nothing here hides it from a screen reader.
+   *
+   * Returning null is the normal case. The manuscript desk
+   * draws a "show me where" control only on the answers that
+   * actually quote a line it can find in the draft, and a
+   * control that pointed nowhere would be worse than none.
+   */
+  foot?: (turn: SiteTurn, index: number) => ReactNode;
   /* Drawn inside the composer's frame, above the textarea — an
      active mode, a chosen subject, an open file. */
   fieldLead?: ReactNode;
@@ -91,6 +107,22 @@ export interface FlagshipChatProps {
    * complete text.
    */
   prefix?: string;
+  /*
+   * Appended to what the visitor typed, on the same terms.
+   *
+   * The workbench carries attached code files this way: the
+   * question goes first and the file follows it, which is the
+   * order somebody would write it in and the order it reads in
+   * afterwards. Putting a 200-line file in `prefix` would bury
+   * the question under it.
+   *
+   * Like `prefix`, it goes INTO the turn rather than beside it,
+   * so the transcript shows the file that was actually sent
+   * rather than a note claiming one was — and, like `prefix`,
+   * it is not applied to a suggested prompt, which carries its
+   * own complete text.
+   */
+  suffix?: string;
   /* Between the log and the composer. */
   beforeForm?: ReactNode;
   /* Under the composer, with the draft in hand — a word count,
@@ -121,8 +153,10 @@ export default function FlagshipChat({
   head,
   opening,
   mark,
+  foot,
   fieldLead,
   prefix,
+  suffix,
   beforeForm,
   meter,
   prompts,
@@ -186,7 +220,13 @@ export default function FlagshipChat({
     }
 
     setDraft("");
-    void send(prefix ? `${prefix}\n\n${text}` : text);
+
+    /* Mode first, then the question, then whatever was
+       attached. That is the order it would have been written
+       in, and the order it reads back in afterwards. */
+    const withPrefix = prefix ? `${prefix}\n\n${text}` : text;
+
+    void send(suffix ? `${withPrefix}\n\n${suffix}` : withPrefix);
   };
 
   const askPrompt = (text: string) => {
@@ -307,6 +347,13 @@ export default function FlagshipChat({
                     <span className="fsc__caretdot" />
                     <span className="fsc__caretdot" />
                   </span>
+                ) : null}
+
+                {/* Only once the answer has stopped moving. A
+                    control that appeared mid-stream would be
+                    offering to act on half a sentence. */}
+                {foot && !streaming ? (
+                  <div className="fsc__foot">{foot(turn, index)}</div>
                 ) : null}
               </div>
             </article>

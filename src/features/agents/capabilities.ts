@@ -42,8 +42,67 @@ export type { CapabilityId } from "./vocab";
 
 import type { CapabilityId } from "./vocab";
 
+/*
+ * The five families a capability can belong to.
+ *
+ * Thirteen switches in one column is a list nobody reads to the
+ * end of, and the order was the order they were built in. These
+ * group them by the question a learner is actually asking —
+ * what can it find out, what can it do, what does it keep —
+ * which is also the order in which those questions occur to
+ * someone building their first agent.
+ *
+ * `email` is last and stays whole: four switches for one
+ * mailbox only make sense read together.
+ */
+export type CapabilityGroupId =
+  | "core"
+  | "knows"
+  | "does"
+  | "remembers"
+  | "email";
+
+export interface CapabilityGroup {
+  id: CapabilityGroupId;
+  label: string;
+  blurb: string;
+}
+
+export const CAPABILITY_GROUPS: CapabilityGroup[] = [
+  {
+    id: "core",
+    label: "Conversation",
+    blurb: "What every agent does, and the one thing none can turn off.",
+  },
+  {
+    id: "knows",
+    label: "What it can find out",
+    blurb:
+      "Where an answer is allowed to come from, beyond the instructions you wrote.",
+  },
+  {
+    id: "does",
+    label: "What it can do",
+    blurb:
+      "Actions rather than answers — computing something, calling a service, producing a file you keep.",
+  },
+  {
+    id: "remembers",
+    label: "What it keeps",
+    blurb:
+      "The two ways an agent still knows something next week. They sound alike and behave oppositely.",
+  },
+  {
+    id: "email",
+    label: "Email",
+    blurb:
+      "Four separate permissions for one mailbox, because reading your post, writing a reply and sending it are genuinely different things to be allowed to do. None of them works yet — they are listed so that what is coming is as visible as what is here, and none of it is faked in the meantime.",
+  },
+];
+
 export interface Capability {
   id: CapabilityId;
+  group: CapabilityGroupId;
   label: string;
   blurb: string;
   icon: typeof MessagesSquare;
@@ -59,6 +118,7 @@ export interface Capability {
 export const CAPABILITIES: Capability[] = [
   {
     id: "chat",
+    group: "core",
     label: "Chat",
     blurb:
       "Hold a conversation. Your instructions and knowledge go with every turn, and the agent answers through the same runtime the Lab uses.",
@@ -67,6 +127,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "knowledge_retrieval",
+    group: "knows",
     label: "Knowledge Search",
     blurb:
       "Search your knowledge for each question and use only the parts that match, instead of sending all of it every time.",
@@ -75,6 +136,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "web_search",
+    group: "knows",
     label: "Web Search",
     blurb:
       "Let it search the live web when a question needs current information, and answer from what it finds — with links to the pages it used.",
@@ -94,6 +156,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "file_analysis",
+    group: "knows",
     label: "File Analysis",
     blurb:
       "Let people attach a PDF, Word document, spreadsheet or picture to a message, and answer questions about what is in it.",
@@ -114,6 +177,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "code_execution",
+    group: "does",
     label: "Run Code",
     blurb:
       "Write a small program, run it, and answer from what it actually printed — rather than working it out in its head.",
@@ -144,6 +208,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "http_actions",
+    group: "does",
     label: "Call APIs",
     blurb:
       "Fetch live data from the web, and use services you connect it to.",
@@ -169,6 +234,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "document_generation",
+    group: "does",
     label: "Make Files",
     blurb:
       "Turn an answer into a real PDF, spreadsheet or Word document you can download — and that a scheduled run attaches to its email.",
@@ -198,6 +264,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "data_store",
+    group: "remembers",
     label: "Keep Records",
     blurb:
       "Give it a small notebook it can write to and read back — a habit log, a running total, anything it should still know next week.",
@@ -226,6 +293,7 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "memory",
+    group: "remembers",
     label: "Memory",
     blurb:
       "Remember useful things about the person it is helping — their goals, how they like to be taught, what they are working on — and still know them next week.",
@@ -262,20 +330,37 @@ export const CAPABILITIES: Capability[] = [
      than one because they are genuinely four different things
      to be allowed to do with somebody's post.
 
-     The hints below carry more weight than any others on this
-     screen. Every capability before this one, at its very
-     worst, produces a bad answer or spends some of a learner's
-     allowance. These reach a real inbox, and a student turning
-     them on deserves to know exactly where the edges are
-     BEFORE they connect an account rather than afterwards.
+     ALL FOUR ARE ready: false, and that is the honest state of
+     them rather than a placeholder. Most of the machinery
+     exists — a draft store, tools for reading, searching,
+     drafting and organising — but the path from "connect a
+     mailbox" to "it worked" is not finished, and the rule this
+     file exists to enforce says a switch that flips without
+     changing what the agent can do must not be offered.
+
+     They cost more to get wrong than anything above them.
+     Every capability before this one, at its very worst,
+     produces a bad answer or spends some of a learner's
+     allowance. These reach a real inbox. A half-working switch
+     on this row would not be a rough edge, it would be a
+     student believing their post was being handled.
+
+     The onHints below are kept, unedited, for the build that
+     turns these on: `soonHint ?? onHint` means flipping `ready`
+     restores the right text with no other change. Until then
+     the soonHints say what the switch will do and that it does
+     not do it yet.
   ======================================================= */
   {
     id: "email_read",
+    group: "email",
     label: "Read Email",
     blurb:
       "Connect a mailbox and let it read and search what is in there — so it can triage your inbox, summarise a thread, or find the message you half remember.",
     icon: Mail,
-    ready: true,
+    ready: false,
+    soonHint:
+      "Connecting a mailbox is not finished yet, so there is nothing for this to read. When it is, you will connect an account through Google's own sign-in — BuildGentic never sees your password, and the agent never sees the key either. Two limits worth knowing before you get there: it reads the whole mailbox, not one message, and a published page or a deployed agent will get none of it whatever this switch says.",
     /*
      * Three things have to land, and the third is the one that
      * would otherwise arrive as a shock.
@@ -298,11 +383,14 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "email_draft",
+    group: "email",
     label: "Draft Replies",
     blurb:
       "Let it write replies for you — in the tone you ask for — and put them somewhere you can read, edit and decide about them.",
     icon: PenLine,
-    ready: true,
+    ready: false,
+    soonHint:
+      "Not finished yet — it needs a connected mailbox to reply to, and that part is still being built. The sentence to hold on to for when it arrives: drafting is not sending. It writes the reply and leaves it somewhere you can read, edit and throw away; you are the one who sends it.",
     /*
      * The one sentence this hint exists to deliver is that
      * drafting is not sending. A student who reads "draft
@@ -315,11 +403,14 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "email_send",
+    group: "email",
     label: "Send Email",
     blurb:
       "Turn on the Send button underneath a draft, so a reply you have read can go out without leaving BuildGentic.",
     icon: Send,
-    ready: true,
+    ready: false,
+    soonHint:
+      "Not finished yet, and it will do less than it sounds like when it is. It never lets your agent send email — nothing does. It turns on a Send button beneath a draft you are looking at, so you can send it from here instead of copying it into Gmail. Every send is you, pressing a button, on a message you have read.",
     /*
      * The most important hint on this screen, and the one that
      * has to be honest about how little this switch actually
@@ -331,11 +422,14 @@ export const CAPABILITIES: Capability[] = [
   },
   {
     id: "email_organize",
+    group: "email",
     label: "Organise Inbox",
     blurb:
       "Let it label, archive, and mark things read when you ask — so a triage can end with the inbox actually tidied.",
     icon: Inbox,
-    ready: true,
+    ready: false,
+    soonHint:
+      "Not finished yet — there is no connected inbox for it to tidy. When there is: it cannot delete anything, because there is no delete in BuildGentic at all. Archiving takes a message out of the inbox and it stays in All Mail, and it only ever acts when you ask.",
     /*
      * Two jobs. Saying that nothing is destroyed, because
      * "let an AI reorganise my inbox" is a reasonable thing to
