@@ -154,11 +154,27 @@ happens to use the app is not a schedule.
 **Also: an authenticated tick endpoint.** `POST /internal/scheduler/tick`,
 bearer token from `NEUROLINK_SCHEDULER_TOKEN` (environment, never the database),
 mounted above CORS like the deployments router so no browser can reach it. It
-exists so the feature survives a hosting decision that has not been made yet: on
-a platform where the API scales to zero, or where a managed cron is the
-idiomatic thing (Render Cron, a GitHub Actions schedule, and yes — `pg_cron` +
-`pg_net`, if the token problem is ever solved by a secrets manager), the driver
-changes and nothing else does.
+exists so the feature survives the hosting decision — and that decision has now
+been made: **production runs `external`.**
+
+Render's free instance spins down after about fifteen minutes without traffic,
+and a sleeping container has no timer and nothing to wake it. That is precisely
+the case `ticker.ts` describes, and on it the in-process default degrades into
+the thing this feature exists not to be: a schedule that fires only when
+somebody happens to use the app. `.github/workflows/scheduler-tick.yml` POSTs
+this endpoint every ten minutes, which wakes the container and fires the due
+runs in the same request, because both paths call `tickOnce` and nothing else
+differs.
+
+The workflow lives in the repo rather than in a platform cron UI, for the reason
+`pg_cron` was rejected: production wiring with no deploy path eventually points
+at an endpoint that got renamed three commits ago. What it costs is punctuality.
+GitHub's scheduled runs are routinely five to twenty minutes late and are
+dropped outright under load, so a daily 09:00 schedule lands by about 09:20. At
+the six-hour cadence floor that is noise, and a dropped slot loses nothing:
+`agent_schedule_claim` computes forward from `now()`, so the next tick fires the
+run once rather than twice. An always-on instance would restore the default
+`internal` ticker and make it exact.
 
 **The guarantee is in the claim, not the ticker.** Both paths call the same
 function:
@@ -514,18 +530,26 @@ nothing.
 and delivered nowhere. That is what lets the mechanics be proved against a
 genuine *successful* send rather than against a rejection.
 
-And one operational constraint worth writing down: `onboarding@resend.dev` is
-Resend's shared sender. It needs no verified domain, and in exchange it
-**delivers only to the address that owns the Resend account**. Any other
-recipient is refused. Emailing real learners needs a verified domain and a
-`NEUROLINK_MAIL_FROM` on it; until then email reaches the account owner and the
-in-app feed carries everyone else — which is exactly the degradation the outbox
-was built for.
+And one operational constraint, now resolved but worth keeping on the record:
+`onboarding@resend.dev` is Resend's shared sender. It needs no verified domain,
+and in exchange it **delivers only to the address that owns the Resend
+account** — every other recipient is refused. The feature shipped in that state,
+with email reaching the account owner and the in-app feed carrying everyone
+else, which is exactly the degradation the outbox was built for.
+
+`buildgentic.com` is now verified with Resend and `NEUROLINK_MAIL_FROM` is an
+address on it, so scheduled runs reach learners at their own account addresses.
+Two things follow. A fresh clone with no key set is still in the state above and
+still runs the whole feature, so nothing about the local story changed. And the
+failure mode to watch for is no longer a refused recipient: it is a **422 per
+send** from a from-address that does not match the verified domain, on a timer,
+visible only in `agent_notifications.email_error`. That is the half that fails
+quietly, and it is why the banner prints the address.
 
 The startup banner now says which state it is in:
 
 ```
-[ai] email: on, from BuildGentic <onboarding@resend.dev> (notifications also stay in the in-app feed)
+[ai] email: on, from BuildGentic <notifications@buildgentic.com> (notifications also stay in the in-app feed)
 [ai] email: off — scheduled runs report to the in-app feed only. Set NEUROLINK_RESEND_API_KEY and NEUROLINK_MAIL_FROM to send.
 ```
 
