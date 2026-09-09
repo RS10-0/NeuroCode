@@ -1,0 +1,97 @@
+# Fires BuildGentic's scheduler from outside the API.
+#
+# The API's own ticker (server/src/agents/schedule/ticker.ts) is an
+# in-process setInterval, which is the right answer on any host that
+# runs a long-lived Node process. Render's free tier is not that host:
+# it spins down after ~15 minutes of no traffic, and a sleeping
+# container has no timer and nothing to wake it. A schedule that fires
+# only when somebody happens to use the app is not a schedule.
+#
+# So production runs with NEUROLINK_SCHEDULER=external and this
+# workflow drives it instead. The POST does double duty — it wakes the
+# container AND fires whatever is due, because tickOnce() is the same
+# function the internal timer calls. Nothing about the run path
+# differs.
+#
+# This lives in the repo on purpose. The pg_cron design was rejected
+# partly because it would have put production wiring in the SQL Editor
+# with no deploy path, pointing at an endpoint that got renamed three
+# commits ago. A workflow file is reviewed, versioned, and moves with
+# the code.
+
+name: Scheduler tick
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub's floor is 5, but its scheduled runs are
+    # routinely 5-20 minutes late and are dropped entirely under load,
+    # so a tighter cron buys less punctuality than it looks like it
+    # does. At a 6-hour cadence floor this lateness is noise; a daily
+    # 09:00 schedule lands within ~15 minutes of the hour.
+    - cron: "*/10 * * * *"
+  # So a tick can be forced from the Actions tab when debugging,
+  # without waiting for the next slot.
+  workflow_dispatch:
+
+# One tick at a time. Overlapping ticks are not a correctness problem —
+# agent_schedule_claim leases what it hands out, so a second tick finds
+# nothing to take — but a queued backlog of cold-start requests is
+# pointless load on a free instance.
+concurrency:
+  group: scheduler-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: POST /internal/scheduler/tick
+        env:
+          TICK_URL: https://api.buildgentic.com/internal/scheduler/tick
+          TOKEN: ${{ secrets.NEUROLINK_SCHEDULER_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::NEUROLINK_SCHEDULER_TOKEN is not set in repository secrets."
+            exit 1
+          fi
+
+          # The free instance sleeps, and waking it costs ~50 seconds
+          # before the request is even served. A short timeout here
+          # would fail every tick that lands on a cold container —
+          # which is most of them, at a 10-minute cadence.
+          set +e
+          status=$(curl --silent --show-error \
+            --request POST "$TICK_URL" \
+            --header "Authorization: Bearer $TOKEN" \
+            --max-time 180 \
+            --retry 2 --retry-delay 30 --retry-connrefused \
+            --write-out '%{http_code}' \
+            --output response.json)
+          rc=$?
+          set -e
+
+          if [ $rc -ne 0 ]; then
+            echo "::error::curl failed (exit $rc) — the API did not answer within the timeout."
+            exit 1
+          fi
+
+          echo "HTTP $status"
+          cat response.json 2>/dev/null || true
+          echo
+
+          # 404 is what a wrong token looks like. The endpoint answers
+          # 404 rather than 401 so an unauthenticated prober cannot
+          # tell a bad token from an endpoint that is not there, which
+          # means the same status also covers "the server has no
+          # NEUROLINK_SCHEDULER_TOKEN set at all".
+          if [ "$status" = "404" ]; then
+            echo "::error::404 — token mismatch, or NEUROLINK_SCHEDULER_TOKEN is unset on the server."
+            exit 1
+          fi
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Unexpected status $status."
+            exit 1
+          fi
