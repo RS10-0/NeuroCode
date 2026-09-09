@@ -543,6 +543,66 @@ export const searchProviderId: SearchProviderId = SEARCH_PROVIDERS.includes(
   ? (configuredSearchProvider as SearchProviderId)
   : "duckduckgo";
 
+/*
+ * The order to try search providers in.
+ *
+ * The same idea as PROVIDER_CHAIN, and it is here for a reason
+ * that only appears once a keyed provider is actually in use:
+ * every free search tier is a monthly allowance, and an
+ * allowance is a cliff. Tavily gives 1,000 credits a month and
+ * a searching turn spends up to `maxQueries` of them, so a
+ * platform with a couple of dozen learners and their schedules
+ * WILL reach the end of it — and the run after that one does
+ * not fail loudly. `runWebSearch` turns a dead provider into an
+ * empty result, the agent answers from training data, and
+ * somebody gets a confident summary of news that does not
+ * exist.
+ *
+ * A chain makes that a slope instead. Tavily while the credits
+ * last, then DuckDuckGo's flakier scrape, which is worse than
+ * Tavily and enormously better than nothing.
+ *
+ * Unset, this is just `[searchProviderId]` — one provider, the
+ * behaviour every existing deployment already has, with no
+ * cascade to reason about until somebody asks for one.
+ */
+const configuredSearchChain = readString("NEUROLINK_WEB_SEARCH_CHAIN");
+
+export const searchChainIds: SearchProviderId[] = (() => {
+  if (!configuredSearchChain) {
+    return [searchProviderId];
+  }
+
+  const parsed: SearchProviderId[] = [];
+
+  for (const raw of configuredSearchChain.split(",")) {
+    const id = raw.trim().toLowerCase();
+
+    if (id === "") {
+      continue;
+    }
+
+    if (!SEARCH_PROVIDERS.includes(id as SearchProviderId)) {
+      /* Warned about and dropped rather than thrown, following
+         schedulerMode(). A typo in one entry of a chain must not
+         take the whole capability down with it. */
+      console.warn(
+        `[search] "${id}" is not a search provider; dropping it from the chain.`
+      );
+      continue;
+    }
+
+    /* De-duplicated, because naming a provider twice would make
+       it answer, fail, and then be asked the same question
+       again — two round trips for one answer. */
+    if (!parsed.includes(id as SearchProviderId)) {
+      parsed.push(id as SearchProviderId);
+    }
+  }
+
+  return parsed.length > 0 ? parsed : [searchProviderId];
+})();
+
 export const braveSearchKey = readString("NEUROLINK_BRAVE_SEARCH_KEY");
 export const tavilyApiKey = readString("NEUROLINK_TAVILY_API_KEY");
 
@@ -2250,29 +2310,50 @@ export const firstTokenTimeoutMs = readInt(
  * question a week later.
  */
 function webSearchDiagnostic(): string {
-  if (searchProviderId === "mock") {
-    return "[ai] web search: mock (offline results, configured explicitly)";
-  }
+  /* `duckduckgo` and `mock` need no key. Everything else is only
+     real if its key is set, and is silently not there if not —
+     which is the degradation this line exists to shout about. */
+  const keyless = (id: SearchProviderId): boolean =>
+    id === "duckduckgo" || id === "mock";
 
-  if (searchProviderId !== "duckduckgo" && !searchKeyFor(searchProviderId)) {
+  const usable = searchChainIds.filter(
+    (id) => keyless(id) || Boolean(searchKeyFor(id))
+  );
+
+  const missingKey = searchChainIds.filter(
+    (id) => !keyless(id) && !searchKeyFor(id)
+  );
+
+  const budget =
+    `up to ${webSearch.maxQueries} ` +
+    `quer${webSearch.maxQueries === 1 ? "y" : "ies"} a turn, ` +
+    `${webSearch.maxResults} results, ` +
+    `${webSearch.contextChars.toLocaleString()} chars of context`;
+
+  if (usable.length === 0) {
     return (
-      `[ai] web search: mock — no key for ${searchProviderId}, so agents ` +
-      `search an offline corpus. Set ` +
-      `${
-        searchProviderId === "brave"
-          ? "NEUROLINK_BRAVE_SEARCH_KEY"
-          : "NEUROLINK_TAVILY_API_KEY"
-      } in server/.env, or set NEUROLINK_WEB_SEARCH_PROVIDER=duckduckgo ` +
-      `for keyless live results.`
+      `[ai] web search: mock — no key for ${searchChainIds.join(" or ")}, so ` +
+      `agents search an offline corpus. Set NEUROLINK_TAVILY_API_KEY in ` +
+      `server/.env, or NEUROLINK_WEB_SEARCH_PROVIDER=duckduckgo for keyless ` +
+      `live results.`
     );
   }
 
-  return (
-    `[ai] web search: ${searchProviderId}, up to ${webSearch.maxQueries} ` +
-    `quer${webSearch.maxQueries === 1 ? "y" : "ies"} a turn, ` +
-    `${webSearch.maxResults} results, ` +
-    `${webSearch.contextChars.toLocaleString()} chars of context`
-  );
+  /* Named rather than counted. An operator who set a chain of two
+     and gets one needs to know WHICH one went missing. */
+  const skipped =
+    missingKey.length > 0 ? ` (skipping ${missingKey.join(", ")} — no key)` : "";
+
+  if (usable.length === 1) {
+    return usable[0] === "mock"
+      ? "[ai] web search: mock (offline results, configured explicitly)"
+      : `[ai] web search: ${usable[0]}${skipped}, ${budget}`;
+  }
+
+  /* The arrow is describeChain's, and means the same thing: tried
+     left to right, and the one that answers is the leftmost that
+     can. */
+  return `[ai] web search: ${usable.join(" → ")}${skipped}, ${budget}`;
 }
 
 export function describeAiConfig(): string[] {

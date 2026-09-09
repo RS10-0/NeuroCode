@@ -202,6 +202,30 @@
   color: var(--ink-secondary);
 }
 
+/*
+ * Sits above the run list rather than inside it, because what it
+ * describes is not any one of those runs — every one of them
+ * succeeded. It is the shape they make together.
+ */
+.schedruns__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--caution);
+  border-radius: var(--radius-sm);
+  background: var(--caution-bg);
+  color: var(--caution);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.schedruns__warning svg {
+  flex: none;
+  margin-top: 0.15em;
+}
+
 .schedruns {
   list-style: none;
   margin: 0;
@@ -467,6 +491,32 @@
 
 .runtrace__item--limit svg {
   color: var(--caution);
+}
+
+/*
+ * A search that ran is an ordinary trace line. A search that
+ * found nothing is the most important line on the card, because
+ * everything printed underneath it was written without the
+ * information it was supposed to be written from — so it gets
+ * the caution treatment the step limit gets, and `--search.ok`
+ * (set only when results came back) takes it away again.
+ */
+.runtrace__item--search {
+  background: var(--caution-bg);
+  color: var(--caution);
+}
+
+.runtrace__item--search svg {
+  color: var(--caution);
+}
+
+.runtrace__item--search.is-ok {
+  background: var(--surface-2);
+  color: inherit;
+}
+
+.runtrace__item--search.is-ok svg {
+  color: var(--ink-muted);
 }
 
 .runtrace__tool {

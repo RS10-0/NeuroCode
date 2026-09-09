@@ -1,13 +1,14 @@
-import { searchLimitsFor, webSearch } from "../ai/config";
+import { searchChainIds, searchLimitsFor, webSearch } from "../ai/config";
 import { AiRuntimeError, normalizeError } from "../ai/errors";
+import type { AiErrorCode } from "../ai/errors";
 import { resolvePowerSource } from "../ai/resolveChain";
 import { admit } from "../ai/QuotaGuard";
 import { finish } from "../ai/UsageRecorder";
 import type { ResolvedPowerSource } from "../ai/types";
 import { cleanText, safeUrl } from "./sanitize";
-import { activeSearchProvider } from "./SearchRegistry";
+import { activeSearchProvider, searchChain } from "./SearchRegistry";
 import { registerSearchProviders } from "./providers";
-import type { SearchProviderId, SearchResult } from "./types";
+import type { SearchProvider, SearchProviderId, SearchResult } from "./types";
 
 /*
  * The entry point for every web search BuildGentic makes.
@@ -223,17 +224,135 @@ function merge(perQuery: SearchResult[][], limit: number): SearchResult[] {
 }
 
 /*
- * One query: admitted, timed, called, recorded.
+ * Failures worth asking the next provider about.
+ *
+ * `provider_unavailable` is the one that matters — it is what a
+ * spent monthly allowance looks like from here, a 429 the
+ * adapter has already retried and given up on. A timeout earns a
+ * second opinion for the same reason a slow first token does in
+ * the model chain.
+ *
+ * `provider_rejected` is here after checking what it actually
+ * covers, and the answer is credentials: TavilyProvider maps
+ * every non-429, non-5xx failure onto it, so a revoked key, an
+ * expired plan and a 403 all arrive under this code. Those are
+ * precisely the cases a chain exists for. The theoretical cost
+ * is a malformed query being refused twice, and it stays
+ * theoretical because `sanitizeQueries` has already trimmed,
+ * length-checked and stripped the query before any adapter sees
+ * it — a provider is not rejecting BuildGentic's query for being
+ * unreadable.
+ *
+ * `provider_malformed_response` likewise: a provider returning
+ * something that is not JSON is a provider having a bad day, and
+ * the next one may not be.
+ *
+ * Everything else stops the chain. `cancelled` means the learner
+ * left. A quota error is BuildGentic's own gate saying no, which
+ * trying somebody else's API does not answer.
+ */
+const FALL_THROUGH: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
+  "provider_unavailable",
+  "provider_rejected",
+  "provider_malformed_response",
+  "timeout",
+]);
+
+/*
+ * One provider, one query, one round trip.
+ *
+ * Split out of `runQuery` so that each attempt in a chain gets
+ * its own controller and its own timer — a timeout against the
+ * first provider must not arrive pre-aborted at the second.
+ *
+ * The cost of that is honest and worth stating: the timeout
+ * budget is now per attempt, so a two-deep chain can take twice
+ * `webSearch.timeoutMs` before giving up. That is the price of
+ * an answer instead of nothing, and it is bounded by the length
+ * of the chain, which an operator sets.
+ */
+async function attemptQuery(
+  input: WebSearchInput,
+  provider: SearchProvider,
+  query: string
+): Promise<SearchResult[]> {
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const onCallerAbort = () => controller.abort();
+  input.signal?.addEventListener("abort", onCallerAbort, { once: true });
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, webSearch.timeoutMs);
+
+  try {
+    const response = await provider.search(
+      { query, maxResults: Math.max(1, webSearch.maxResultsPerQuery) },
+      controller.signal
+    );
+
+    if (timedOut) {
+      throw new AiRuntimeError(
+        "timeout",
+        "The web search did not respond in time."
+      );
+    }
+
+    return response.results
+      .map(normalize)
+      .filter((result): result is SearchResult => result !== null);
+  } catch (error) {
+    const failure = timedOut
+      ? new AiRuntimeError("timeout", "The web search did not respond in time.")
+      : normalizeError(error);
+
+    if (failure.internalDetail) {
+      /* Read here and nowhere else, exactly like a model
+         provider's detail. It never reaches a response body. */
+      console.error(
+        `[search] ${provider.id} ${failure.code}: ${failure.internalDetail}`
+      );
+    }
+
+    throw failure;
+  } finally {
+    clearTimeout(timer);
+    input.signal?.removeEventListener("abort", onCallerAbort);
+    controller.abort();
+  }
+}
+
+/* What one query produced, and which provider produced it. */
+interface QueryOutcome {
+  results: SearchResult[];
+  provider: SearchProviderId;
+}
+
+/*
+ * One query: admitted once, tried down the chain, recorded once.
  *
  * Throws on failure. `runWebSearch` below is what turns that
  * into a degraded answer rather than a refusal.
+ *
+ * ONE admission for the whole chain, and that is deliberate.
+ * Admitting per attempt would mean a learner whose first
+ * provider is out of credits spends two slots of their own
+ * search window to get one answer — their failovers would rate-
+ * limit them, which is the opposite of what a fallback is for.
+ * The ledger stays one row per query, and `finish` corrects
+ * `provider_id` to whoever actually answered: exactly the
+ * mechanism the model chain already uses, and the reason
+ * UsageRecorder's `finish` takes a providerId at all.
  */
 async function runQuery(
   input: WebSearchInput,
   source: ResolvedPowerSource,
   query: string
-): Promise<SearchResult[]> {
-  const provider = activeSearchProvider();
+): Promise<QueryOutcome> {
+  const chain = searchChain();
+  const provider = chain[0] ?? activeSearchProvider();
 
   const admission = await admit({
     userId: input.userId,
@@ -277,52 +396,66 @@ async function runQuery(
 
   const startedAt = Date.now();
 
-  const controller = new AbortController();
-  let timedOut = false;
-
-  const onCallerAbort = () => controller.abort();
-  input.signal?.addEventListener("abort", onCallerAbort, { once: true });
-
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, webSearch.timeoutMs);
-
   let failure: AiRuntimeError | null = null;
+  let answered: SearchProvider | null = null;
+  let results: SearchResult[] = [];
 
   try {
-    const response = await provider.search(
-      { query, maxResults: Math.max(1, webSearch.maxResultsPerQuery) },
-      controller.signal
-    );
+    for (let index = 0; index < chain.length; index += 1) {
+      const candidate = chain[index];
 
-    if (timedOut) {
-      throw new AiRuntimeError(
-        "timeout",
-        "The web search did not respond in time."
+      /*
+       * The learner closed the tab, or the scheduled run hit its
+       * deadline. Trying the next provider would be a round trip
+       * nobody is waiting for the answer to.
+       */
+      if (input.signal?.aborted) {
+        failure = new AiRuntimeError(
+          "cancelled",
+          "The web search was cancelled."
+        );
+        break;
+      }
+
+      try {
+        results = await attemptQuery(input, candidate, query);
+        answered = candidate;
+        failure = null;
+        break;
+      } catch (error) {
+        failure = normalizeError(error);
+
+        const last = index === chain.length - 1;
+
+        if (last || !FALL_THROUGH.has(failure.code)) {
+          break;
+        }
+
+        /*
+         * Warn rather than error: the request has not failed, it
+         * has been demoted. This is the line an operator greps
+         * for on the day the month's credits run out, so it names
+         * both ends of the hop.
+         */
+        console.warn(
+          `[search] ${candidate.id} ${failure.code}; falling through to ` +
+            `${chain[index + 1].id}`
+        );
+      }
+    }
+
+    if (!answered) {
+      throw (
+        failure ??
+        new AiRuntimeError(
+          "provider_unavailable",
+          "No search provider was able to answer."
+        )
       );
     }
 
-    return response.results
-      .map(normalize)
-      .filter((result): result is SearchResult => result !== null);
-  } catch (error) {
-    failure = timedOut
-      ? new AiRuntimeError("timeout", "The web search did not respond in time.")
-      : normalizeError(error);
-
-    if (failure.internalDetail) {
-      /* Read here and nowhere else, exactly like a model
-         provider's detail. It never reaches a response body. */
-      console.error(`[search] ${failure.code}: ${failure.internalDetail}`);
-    }
-
-    throw failure;
+    return { results, provider: answered.id };
   } finally {
-    clearTimeout(timer);
-    input.signal?.removeEventListener("abort", onCallerAbort);
-    controller.abort();
-
     /* Always. A pending row holds one of this learner's search
        concurrency slots until the reaper sweeps it. */
     await finish(admission.usageId, {
@@ -330,6 +463,13 @@ async function runQuery(
       latencyMs: Date.now() - startedAt,
       ok: failure === null,
       errorCode: failure?.code,
+      /*
+       * Who actually answered, which is not necessarily who
+       * admission predicted. Null leaves the prediction standing,
+       * which is right for a failure: the row should name the
+       * provider that was asked and could not.
+       */
+      providerId: answered?.id,
     });
   }
 }
@@ -378,11 +518,13 @@ export async function runWebSearch(
   );
 
   const perQuery: SearchResult[][] = [];
+  const used: SearchProviderId[] = [];
   let failures = 0;
 
   for (const outcome of settled) {
     if (outcome.status === "fulfilled") {
-      perQuery.push(outcome.value);
+      perQuery.push(outcome.value.results);
+      used.push(outcome.value.provider);
       continue;
     }
 
@@ -391,10 +533,39 @@ export async function runWebSearch(
   }
 
   return {
-    provider: provider.id,
+    /*
+     * The furthest-down-chain provider that actually contributed.
+     *
+     * Queries run in parallel and each walks the chain on its
+     * own, so two queries in one turn can be answered by two
+     * different providers — the first from Tavily, the second
+     * from DuckDuckGo after Tavily's allowance ran out between
+     * them. Reporting the worst of them is the honest summary:
+     * a turn is only as good as its weakest source, and taking
+     * the best would let one lucky query hide the degradation
+     * this whole chain exists to make visible.
+     */
+    provider: worstUsed(used) ?? provider.id,
     queries,
     results: merge(perQuery, Math.max(1, webSearch.maxResults)),
     latencyMs: Date.now() - startedAt,
     failed: failures === queries.length,
   };
+}
+
+/* The one latest in the configured order. */
+function worstUsed(used: SearchProviderId[]): SearchProviderId | null {
+  let worst: SearchProviderId | null = null;
+  let rank = -1;
+
+  for (const id of used) {
+    const at = searchChainIds.indexOf(id);
+
+    if (at > rank) {
+      rank = at;
+      worst = id;
+    }
+  }
+
+  return worst;
 }
