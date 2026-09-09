@@ -63,9 +63,19 @@ export interface FlagshipIdentity {
   eyebrow: string;
   headline: string;
   deck: string;
-  /* Light or dark is part of the identity here rather than a
-     visitor preference or a stored field. A workbench that
-     opened white would not be a workbench. */
+  /*
+   * Light or dark is part of the identity here rather than a
+   * visitor preference or a stored field. A workbench that
+   * opened white would not be a workbench.
+   *
+   * On four of the five this is the page's only mode. On the
+   * writing desk it is the mode the page OPENS in — that one
+   * layout is two rooms with a switch between them, and it
+   * owns the mode from first interaction onward. This value is
+   * still what the very first paint uses, which is why it
+   * matches that page's default studio rather than being
+   * arbitrary. See the note on `writing-coach` below.
+   */
   mode: FlagshipMode;
   chat: FlagshipChatCopy;
   /* What the page says about itself at the bottom, in place of
@@ -101,11 +111,26 @@ export interface FlagshipIdentity {
 
 const IDENTITIES: Partial<Record<FlagshipId, FlagshipIdentity>> = {
   /* -------------------------------------------------------
-     WRITING COACH — the manuscript desk
+     WRITING COACH — the writing studio
 
      Editorial register throughout: passes, marginalia, folios.
      The page is a working surface for a draft, so the words
      assume somebody has one.
+
+     THE ONE PAGE WITH TWO MODES, and the exception is the
+     point rather than a lapse. This agent serves a novelist
+     and an essay writer, and those two want different tools
+     rather than the same tools in a different colour — so the
+     layout carries a switch that changes the palette, the
+     reading face, the three launchpad actions, the filters and
+     what the side panel measures. `mode` below is therefore
+     the OPENING mode: dark, because the creative studio is the
+     default room and a first paint that flashed white before
+     settling dark would be worse than either.
+
+     The headline and deck stay put across the flip on purpose.
+     What the product promises does not change when you change
+     desks; only the tools do.
      ------------------------------------------------------- */
   "writing-coach": {
     id: "writing-coach",
@@ -114,16 +139,16 @@ const IDENTITIES: Partial<Record<FlagshipId, FlagshipIdentity>> = {
     headline: "Bring a draft. Leave with a better one.",
     deck:
       "Paste what you have written — an essay, a story, an email you are nervous about — and get the specific, unflattering, useful notes an editor would write in the margin.",
-    mode: "light",
+    mode: "dark",
     chat: {
       greeting:
-        "Paste a draft and tell me what you want from it — or ask me something about the writing you are stuck on.",
-      placeholder: "Paste a draft, or describe what you are writing…",
+        "Put a draft in the pane and pick a way in — or just ask me something about what you are writing.",
+      placeholder: "Ask about the draft, or about the writing…",
       sendLabel: "Send to the desk",
       hint: "Your draft stays in this conversation. Nothing here writes the essay for you.",
       openingTitle: "The desk is clear.",
       openingBody:
-        "Start with a pass, or paste a paragraph and ask what is wrong with it.",
+        "Pick one of the three cards above, or ask a question of your own.",
     },
     footnote:
       "A BuildGentic flagship agent. It gives notes; the writing stays yours.",
@@ -151,11 +176,14 @@ const IDENTITIES: Partial<Record<FlagshipId, FlagshipIdentity>> = {
       sendLabel: "Ask",
       hint: "It asks questions rather than picking for you. Nothing you say here goes on a record.",
       openingTitle: "Start anywhere on the path.",
-      /* No direction words: the rail runs across the page on a
-         wide screen and down it on a narrow one, so "at the
-         left" is wrong half the time. */
+      /* "Above" is safe and "at the left" is not. The rail runs
+         across the page on a wide screen and down it on a
+         narrow one, so a sideways direction is wrong half the
+         time — but the three route cards are a section of the
+         page ahead of the conversation at every width, so the
+         one direction word here is true at all of them. */
       openingBody:
-        "Most people start with a subject they like and no plan attached to it.",
+        "Press one of the three routes above, or just say the thing you are actually worried about.",
     },
     footnote:
       "A BuildGentic flagship agent. Guidance to think with, not advice to act on blindly.",
