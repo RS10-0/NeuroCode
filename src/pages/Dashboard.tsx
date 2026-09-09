@@ -293,7 +293,7 @@ export default function Dashboard() {
             </div>
 
             <div className="lesson-list">
-              <Link to="/courses" className="lesson-row">
+              <Link to="/courses" className="lesson-row lesson-row--nav">
                 <span className="lesson-row__index">
                   {isLoading ? "—" : COURSE_CATALOG.length}
                 </span>
@@ -304,12 +304,12 @@ export default function Dashboard() {
                     publishing something you built.
                   </span>
                 </span>
-                <span className="lesson-row__meta">
+                <span className="lesson-row__meta lesson-row__go">
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </Link>
 
-              <Link to="/agents" className="lesson-row">
+              <Link to="/agents" className="lesson-row lesson-row--nav">
                 <span className="lesson-row__index">
                   <Bot size={14} aria-hidden="true" />
                 </span>
@@ -319,12 +319,12 @@ export default function Dashboard() {
                     Standalone agents you build, test, and publish.
                   </span>
                 </span>
-                <span className="lesson-row__meta">
+                <span className="lesson-row__meta lesson-row__go">
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </Link>
 
-              <Link to="/projects" className="lesson-row">
+              <Link to="/projects" className="lesson-row lesson-row--nav">
                 <span className="lesson-row__index">
                   <FolderOpen size={14} aria-hidden="true" />
                 </span>
@@ -334,7 +334,7 @@ export default function Dashboard() {
                     Apps you have made, and where they are deployed.
                   </span>
                 </span>
-                <span className="lesson-row__meta">
+                <span className="lesson-row__meta lesson-row__go">
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </Link>

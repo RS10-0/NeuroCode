@@ -289,13 +289,18 @@ export default function CourseDetail() {
                       </span>
                     </span>
 
+                    {/* State above, cost below. Stacked so the badge
+                        and the duration cannot land on the same line
+                        and crowd the description out of the row. */}
                     <span className="lesson-row__meta">
                       {isDone ? (
                         <Badge tone="correct">Complete</Badge>
                       ) : isCurrent ? (
                         <Badge tone="accent">Up next</Badge>
                       ) : null}
-                      <span className="meta">{lesson.estimatedMinutes}m</span>
+                      <span className="meta">
+                        {lesson.estimatedMinutes}m · {lesson.totalXp} XP
+                      </span>
                     </span>
                   </>
                 );
