@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { AiRuntimeError } from "../ai/errors";
 import { getAgentById, type AgentRecord } from "../agents/AgentStore";
+import { flagshipPublishable } from "../../../src/features/agents/flagships";
 import {
   canonicalizeSlug,
   checkSlug,
@@ -465,6 +466,34 @@ export async function resolveSite(
   const agent = await getAgentById(row.agent_id);
 
   if (!agent || agent.userId !== row.user_id) {
+    return null;
+  }
+
+  /*
+   * An agent that may not have a public page does not get one,
+   * whatever is in the table.
+   *
+   * `flagshipPublishable` was enforced only where a page is
+   * CREATED — the publish endpoint in routes/agents.ts — which
+   * cannot help against a row that predates the check. One
+   * existed: `/email-agent` was serving a generic-template page
+   * advertising inbox triage, while `emailRead`, `emailDraft`
+   * and `emailOrganize` are hard `false` on this very door. A
+   * write-time guard is a policy about new rows; this is the
+   * policy about answers, and it is the one a visitor meets.
+   *
+   * Here rather than in the two routes because both of them —
+   * the page and the chat behind it — come through this
+   * function, and a slug that 404s on the page while still
+   * answering a POST would be the same hole with a longer path
+   * to it.
+   *
+   * `isOfficial` is required as well: `flagshipPublishable`
+   * answers about BuildGentic's own catalogue, and a student's
+   * agent that happens to carry a stale `flagship_id` is not
+   * something this rule has any business withdrawing.
+   */
+  if (agent.isOfficial && !flagshipPublishable(agent.flagshipId)) {
     return null;
   }
 
