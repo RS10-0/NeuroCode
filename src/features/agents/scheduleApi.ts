@@ -476,9 +476,26 @@ function failureMeaning(detail: string | null): string {
     case "quota_exceeded":
     case "rate_limited":
       return "It had already run as often as it is allowed to today.";
+    /*
+     * Split, because one of these clears on its own and the
+     * other never will, and telling a learner the wrong one
+     * wastes their afternoon either way.
+     *
+     * `provider_unavailable` means all four models in the
+     * cascade refused or timed out at once. That is rare and
+     * almost always brief — the commonest cause is the first
+     * heavy request after the API restarts, when nothing is
+     * warm yet. The old copy stopped at the diagnosis and left
+     * a fifteen-year-old staring at a red box with no next
+     * move, which reads as "this product is broken" rather
+     * than "try that again". The `default` case below has said
+     * the reassuring half all along; this one just never got
+     * it.
+     */
     case "provider_unavailable":
+      return "Every AI provider was busy at once. This usually clears in a minute — press Run once to test again.";
     case "provider_not_configured":
-      return "BuildGentic could not reach an AI provider.";
+      return "BuildGentic has no AI provider set up. This one is on us, not on you — it will not fix itself by retrying.";
     default:
       return "Something went wrong on our side. The next run will try again.";
   }
