@@ -14,7 +14,22 @@ import type { AiUsageReport } from "../../lib/aiClient";
  * them cannot drift apart.
  */
 
-export function UsageMeters({ usage }: { usage: AiUsageReport | null }) {
+interface UsageMetersProps {
+  usage: AiUsageReport | null;
+  /*
+   * Whether BuildGentic's own daily ceiling is one of the
+   * meters.
+   *
+   * On in the Lab, where a learner who gets stopped by it needs
+   * to have already seen it moving. Off in the Agent Builder:
+   * that screen is the one people demo and screenshot, and how
+   * much of the platform's day everyone else has spent is not
+   * the builder's business.
+   */
+  showPlatform?: boolean;
+}
+
+export function UsageMeters({ usage, showPlatform = true }: UsageMetersProps) {
   if (!usage) {
     return null;
   }
@@ -45,9 +60,10 @@ export function UsageMeters({ usage }: { usage: AiUsageReport | null }) {
     /*
      * BuildGentic's own ceiling — the limit that can stop a
      * learner for reasons which have nothing to do with them.
-     * Shown so that being stopped by it is not a surprise.
+     * Shown so that being stopped by it is not a surprise,
+     * where it is shown at all.
      */
-    platform.budget.dailyTokens > 0 ? (
+    showPlatform && platform.budget.dailyTokens > 0 ? (
       <Meter
         key="platform"
         label="Shared budget (everyone)"

@@ -70,7 +70,12 @@ export default function ModelSection({
       </div>
 
       <div className="agentsec__body">
-        <UsageMeters usage={usage} />
+        {/* Your allowance, not the platform's. The shared budget
+            meter belongs in the Lab, where being stopped by it
+            is the thing that needs explaining — here it is a
+            number about everyone else on a screen about one
+            agent. */}
+        <UsageMeters usage={usage} showPlatform={false} />
 
         {models.length === 0 ? (
           <Callout tone="caution" title="AI is unavailable">
