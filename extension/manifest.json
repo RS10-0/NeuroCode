@@ -1,19 +1,19 @@
 {
   "manifest_version": 3,
   "name": "BuildGentic",
-  "version": "0.1.0",
-  "description": "Ask one of your own BuildGentic agents about the page you are on.",
+  "version": "1.0.0",
+  "description": "Chat with the agents you built on BuildGentic, from a side panel on any site.",
 
   "minimum_chrome_version": "116",
 
-  "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv4V6Efszo6c0VnlKSiOyaq2z4PXxB76wqKiS7IWj2WWoZHnNw4j4Y0v5IXYWVyWNmrNaNd31NVTEDc4Sl0JIrCZ2QotAeijQOdr1ZMA5vlYtw0Sv6CFk8YBedtlpVP+b6GIb8tZxFCGwcrMqIGePOakrOVRf9gd8M7GT+uw1ZBil+FIEjyFjIwkvIcNImKvaCNPvRn7TelxOtUmLlkxJV7q7P9CnfbyBdcSIC+xhl8CDHvHORMBuXStBimSqT4EsmGn/crBs8lXd4ECZUliFBQX550ttIG7d7UMtAnSd135VkzrKT99y4VtnZcUL39ciH6q9zjtXzlm0NEslcsJHPQIDAQAB",
 
-  "host_permissions": ["http://localhost:3001/*"],
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "contextMenus"],
 
-  "optional_host_permissions": ["<all_urls>"],
+  "host_permissions": ["https://api.buildgentic.com/*"],
 
   "externally_connectable": {
-    "matches": ["http://localhost:5199/*", "http://localhost:5200/*"]
+    "matches": ["https://www.buildgentic.com/*"]
   },
 
   "background": {

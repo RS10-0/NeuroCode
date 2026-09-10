@@ -13,9 +13,24 @@
  * completes, which is the failure worth naming here.
  */
 
-export const API_ORIGIN = "http://localhost:3001";
+export const API_ORIGIN = "https://api.buildgentic.com";
 
-export const WEB_ORIGIN = "http://localhost:5199";
+/*
+ * NOTE THE `www.` — it is load-bearing, not a typo.
+ *
+ * The apex buildgentic.com does not serve the app: it answers
+ * every path, /extension/connect included, with a 308 to
+ * https://www.buildgentic.com. So the pairing page runs on the
+ * www origin, and that is the string `sender.url`'s origin is
+ * compared against in sw.js. Dropping the `www.` here fails the
+ * strict check and pairing never completes, silently — the exact
+ * failure named at the top of this file.
+ *
+ * `externally_connectable` in manifest.json must name this same
+ * host. A Chrome match pattern host is exact: buildgentic.com
+ * does not match www.buildgentic.com.
+ */
+export const WEB_ORIGIN = "https://www.buildgentic.com";
 
 export const PAIR_PATH = "/extension/connect";
 

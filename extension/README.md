@@ -46,12 +46,20 @@ Without it the pairing page cannot hand the token over and says so.
 
 **2. Point the extension at your API.**
 
-`config.js` holds the two addresses. The defaults are the local dev server
-(`http://localhost:3001`) and the local web app (`http://localhost:5199`).
-If Vite moved to another port — it does when 5199 is taken — change
-`WEB_ORIGIN` and the matching entry under `externally_connectable` in
-`manifest.json`, because that list is what allows the pairing page to talk to
-the extension at all.
+`config.js` holds the two addresses. **They now point at production** —
+`https://api.buildgentic.com` and `https://www.buildgentic.com` — so to work
+against a local stack you change them back to `http://localhost:3001` and
+`http://localhost:5199` (or whichever port Vite took; it moves when 5199 is
+busy).
+
+Whatever you set, `WEB_ORIGIN` and the matching entry under
+`externally_connectable` in `manifest.json` must name the **same origin,
+character for character**. That list is what allows the pairing page to talk
+to the extension at all, and `sw.js` compares the sender's origin against
+`WEB_ORIGIN` with strict equality on top of it. Note the `www.` in the
+production value: the apex `buildgentic.com` answers every path with a 308
+redirect to `www.`, so the pairing page runs on the `www` origin and nothing
+else matches it.
 
 **3. Load it.**
 
@@ -74,9 +82,44 @@ separate switch and is off until you turn it on as well.
 
 ## Icons
 
-`icons/` is empty in the repository. Chrome will load the extension without
-icons and draw a placeholder; add `16.png`, `48.png` and `128.png` before
-publishing.
+`icons/` holds `16.png`, `48.png` and `128.png` — a navy rounded square
+carrying the same two-nodes-and-a-link mark as `src/components/BrandMark.tsx`,
+redrawn as filled geometry so it survives being 16 pixels wide. The colours
+are the app's own `--accent` / `--on-accent`.
+
+## Pinning the extension id
+
+Without a `key` field in the manifest, Chrome derives the extension's id from
+a keypair it makes up per machine, so an unpacked install gets a different id
+on every computer. That is survivable in development and fatal in production,
+because the server identifies the extension *by* that id —
+`NEUROLINK_EXTENSION_ORIGIN` is one exact origin and never a wildcard
+(`server/src/index.ts`, `isAllowedOrigin`).
+
+The id has to come from the Web Store, because the Store's own key is what
+governs the published item. Generating a keypair locally would pin a
+perfectly stable id that the Store then declines to use, and the server
+setting would have to change again at publication.
+
+1. Zip this folder — `npm run pack:extension` from the repo root writes
+   `dist-extension/buildgentic-extension.zip`.
+2. In the [Developer Dashboard](https://chrome.google.com/webstore/devconsole),
+   create a new item and upload that zip. **Do not submit it for review**;
+   creating the draft is all that is needed.
+3. Open the item's **Package** tab → **View public key**.
+4. Copy the text *between* `-----BEGIN PUBLIC KEY-----` and
+   `-----END PUBLIC KEY-----`, and join it into a single line with no
+   newlines.
+5. Paste it into `manifest.json` as a top-level `"key"` field.
+6. Run `node extension/verify-key.js`. It prints the id that key yields and
+   the exact `NEUROLINK_EXTENSION_ORIGIN` / `VITE_EXTENSION_ID` values to
+   set — copied from a computed value rather than retyped from a dashboard.
+7. Load the folder unpacked at `chrome://extensions` and confirm the id shown
+   there matches. It is the same derivation, so a mismatch means the key was
+   pasted wrong.
+
+`key` is a **public** key. It belongs in git. The Store holds the private
+half; there is no private key for this repository to leak.
 
 ## Permissions, and why they are what they are
 
@@ -89,9 +132,29 @@ permission Chrome enforces. There is no moment at which extension code is
 running on a page you did not just invoke it on, because the access does not
 exist until you act.
 
-`<all_urls>` is declared as **optional** and never requested. It is there so
-a future site-specific phase can ask for it at runtime rather than needing a
-permission bump that re-prompts every existing install.
+The corollary bites, so it is worth stating: **the grant is per tab and dies
+when that tab navigates.** A panel left open while somebody reads three
+articles holds access to none of them. Two gestures re-grant it — the toolbar
+icon, and the right-click item `contextMenus` adds — and the panel names both
+when a capture is refused for want of access.
+
+`sw.js` must **not** use `setPanelBehavior({ openPanelOnActionClick: true })`,
+and the reason is the trap this whole section is about. The browser then
+consumes the icon click to open the panel: `action.onClicked` never fires, and
+`activeTab` is granted by an *invocation of the extension*, not by a panel
+appearing — so it is never granted at all. The panel opens looking perfectly
+healthy and every capture is refused. The click is therefore handled in
+`onClicked`, which calls `sidePanel.open()` as its first statement, before any
+`await` that would spend the user gesture.
+
+`<all_urls>` is **not declared at all**, not even as an optional permission.
+It used to sit in `optional_host_permissions` so that a future site-specific
+phase could request it at runtime instead of taking a permission bump — but
+a broad host permission that nothing requests is a question to answer at
+Web Store review for a capability that does not exist yet. It costs nothing
+to add back: `optional_host_permissions` can be introduced in the version
+that first calls `chrome.permissions.request`, and only existing installs at
+*that* point would see a prompt. Today there are none.
 
 There are **no declared content scripts**, including on buildgentic.com. The
 pairing page talks to the extension through `externally_connectable`, so

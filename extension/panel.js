@@ -1,5 +1,6 @@
 import { API_ORIGIN, MAX_CAPTURE_CHARS } from "./config.js";
 import { capturePage } from "./capture.js";
+import { renderMarkdown } from "./markdown.js";
 
 /*
  * The side panel.
@@ -181,13 +182,47 @@ async function capture() {
       func: capturePage,
       args: [mode, MAX_CAPTURE_CHARS],
     });
-  } catch {
+  } catch (error) {
     /*
-     * Chrome refuses injection on its own pages, the Web Store,
-     * and PDFs. That is a normal thing to bump into, not a
-     * fault, so it is said plainly.
+     * TWO CAUSES WEARING THE SAME EXCEPTION, and saying the
+     * wrong one sends somebody looking for a fault that is not
+     * there.
+     *
+     * A restricted page — the browser's own pages, the Web
+     * Store, a PDF viewer — can never be injected into, and no
+     * amount of pressing anything will change that.
+     *
+     * An ordinary page that refuses means `activeTab` is not
+     * held for this tab: the grant arrives with a press of the
+     * extension's button and is revoked the moment the tab
+     * navigates, so opening the panel and then browsing loses
+     * it.
+     *
+     * `tab.url` tells them apart WITHOUT the `tabs` permission,
+     * which is the neat part: the field is only populated for a
+     * tab the extension has access to. Undefined therefore
+     * means the grant is missing, and a readable http(s) URL
+     * means it is held and something else went wrong.
      */
-    throw new Error("This page cannot be read — Chrome does not allow it here.");
+    const url = tab.url ?? "";
+
+    console.error("[buildgentic] capture refused", {
+      hasUrl: Boolean(tab.url),
+      url,
+      message: error?.message ?? String(error),
+    });
+
+    if (!url) {
+      throw new Error(
+        "Press the BuildGentic icon on this page — or right-click the page and pick “Ask BuildGentic about this page” — then ask again. Permission to read a page comes from that gesture and lapses when the tab moves on."
+      );
+    }
+
+    throw new Error(
+      /^https?:/.test(url)
+        ? "That page refused to be read. Reload it and press the BuildGentic icon again."
+        : "This page cannot be read — the browser does not allow it here."
+    );
   }
 
   const captured = results?.[0]?.result;
@@ -226,10 +261,34 @@ function render() {
     }
 
     const text = document.createElement("div");
-    text.className = "msg__text";
-    /* textContent, never innerHTML. An answer can quote a page,
-       and a page is a stranger's markup. */
-    text.textContent = message.content;
+
+    if (message.role === "assistant") {
+      /*
+       * Answers arrive as Markdown, so they are rendered as
+       * Markdown — printing the asterisks was never a decision,
+       * just what `textContent` does with them.
+       *
+       * `renderMarkdown` builds nodes and sets their text with
+       * `textContent`, so the rule below still holds: nothing
+       * a model wrote reaches this document as markup. See the
+       * header of markdown.js.
+       */
+      text.className = "msg__md";
+      text.appendChild(renderMarkdown(message.content));
+    } else {
+      /*
+       * A learner's own message is NOT rendered as Markdown,
+       * and the asymmetry is on purpose: somebody who types an
+       * asterisk means an asterisk, and seeing their own words
+       * silently restyled is worse than seeing them plainly.
+       *
+       * textContent, never innerHTML. An answer can quote a
+       * page, and a page is a stranger's markup.
+       */
+      text.className = "msg__text";
+      text.textContent = message.content;
+    }
+
     row.appendChild(text);
 
     log.appendChild(row);
@@ -280,10 +339,17 @@ async function ask(event) {
       body: JSON.stringify({
         agentId: currentAgent().id,
         /* Only the turns, never the page chips — the server
-           composes everything else from the stored agent. */
+           composes everything else from the stored agent.
+
+           The filter is what drops the empty assistant
+           placeholder pushed just above, and it is the only
+           thing that should be dropped. Taking the last
+           element off as well removed the question that was
+           just typed with it, which on a first turn left the
+           server an empty array and the reply "messages must
+           contain at least one message". */
         messages: messages
           .filter((m) => m.content || m.role === "user")
-          .slice(0, -1)
           .map(({ role, content }) => ({ role, content })),
         ...(page
           ? {
