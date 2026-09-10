@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "pack:extension": "node scripts/pack-extension.js"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

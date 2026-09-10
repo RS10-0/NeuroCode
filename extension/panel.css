@@ -184,6 +184,111 @@ body {
 }
 
 /*
+ * A rendered answer.
+ *
+ * No `pre-wrap` here, unlike the message above it: the blocks
+ * markdown.js builds carry the structure now, and preserving
+ * the source newlines on top of them would double every gap.
+ *
+ * The margins are the whole job. Browser defaults are tuned
+ * for a page of prose and a three-bullet answer in a 360px
+ * column needs about half of them — hence the first/last
+ * child rules, which stop a bubble opening or closing on
+ * empty space.
+ */
+.msg__md {
+  overflow-wrap: anywhere;
+}
+
+.msg__md > *:first-child {
+  margin-top: 0;
+}
+
+.msg__md > *:last-child {
+  margin-bottom: 0;
+}
+
+.msg__md p {
+  margin: 0 0 8px;
+}
+
+.msg__md h3,
+.msg__md h4,
+.msg__md h5,
+.msg__md h6 {
+  margin: 12px 0 6px;
+  line-height: 1.35;
+}
+
+.msg__md h3 {
+  font-size: 15px;
+}
+
+.msg__md h4,
+.msg__md h5,
+.msg__md h6 {
+  font-size: 14px;
+}
+
+.msg__md ul,
+.msg__md ol {
+  /* Enough to hang a marker on and no more — a default 40px
+     indent inside a narrow bubble costs a word per line. */
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.msg__md li {
+  margin: 0 0 4px;
+}
+
+.msg__md li:last-child {
+  margin-bottom: 0;
+}
+
+.msg__md code {
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.msg__md pre {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  /* A code block is the one thing here allowed its own
+     scrollbar: breaking a line of code to fit the panel
+     changes what it says. */
+  overflow-x: auto;
+}
+
+.msg__md pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+.msg__md blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.msg__md hr {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.msg__md a {
+  color: var(--accent);
+}
+
+/*
  * The chip saying a page was read.
  *
  * On the message it belongs to rather than in a status bar,

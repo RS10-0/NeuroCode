@@ -98,7 +98,7 @@ Questions about this policy or your data can be sent to [buildgentic@gmail.com](
 export const PRIVACY_POLICY: LegalDocument = {
   path: "/privacy",
   title: "Privacy Policy",
-  updated: "14 September 2026",
+  updated: "10 September 2026",
   lede: "This policy explains what information BuildGentic collects, why, and how it's handled. It covers the BuildGentic website, the BuildGentic browser extension, and any AI agents you build or use through BuildGentic.",
   body: PRIVACY_BODY,
 };

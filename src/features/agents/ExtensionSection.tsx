@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, PanelRight, ScanText } from "lucide-react";
+import { ChevronDown, PanelRight, ScanText } from "lucide-react";
 
 import { Badge, Callout } from "../../components/ui";
 import {
@@ -64,6 +64,13 @@ export default function ExtensionSection({ agentId, saved }: Props) {
    */
   const [loading, setLoading] = useState(Boolean(agentId));
   const [error, setError] = useState<string | null>(null);
+  /*
+   * Which cards have their detail showing, keyed the way
+   * CapabilitiesSection keys its own: absent means "whatever the
+   * default for this card is", so a learner's choice survives a
+   * toggle rather than being recomputed under them.
+   */
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!agentId) {
@@ -155,129 +162,182 @@ export default function ExtensionSection({ agentId, saved }: Props) {
             {error ? <Callout tone="error">{error}</Callout> : null}
 
             <ul className="caps">
-              <li>
-                <button
-                  type="button"
-                  className={
-                    settings.extensionEnabled ? "cap cap--on" : "cap"
-                  }
-                  aria-pressed={settings.extensionEnabled}
-                  aria-disabled={loading}
-                  onClick={() => {
-                    if (!loading) {
-                      void save({
+              {(() => {
+                /*
+                 * The two cards, described rather than written
+                 * out twice.
+                 *
+                 * They were duplicated markup before, and the
+                 * duplication is what let them drift out of the
+                 * shape `.cap` is styled for — a bare
+                 * `<button className="cap">` with the hint
+                 * nested inside the body, so the row layout, the
+                 * padding and the left alignment that live on
+                 * `.cap__toggle` never applied and the card came
+                 * out centred. One list, one renderer, and the
+                 * structure is CapabilitiesSection's exactly:
+                 * card, toggle, disclosure, hint.
+                 */
+                const panelOn = settings.extensionEnabled;
+
+                /*
+                 * The page card is unavailable for two unrelated
+                 * reasons, and they need different words. The
+                 * account gate is not something an owner can act
+                 * on here; the parent switch is.
+                 */
+                const pageUnavailable = !panelOn || pageBlocked;
+                const pageOn = settings.extensionPageContext && !pageUnavailable;
+
+                const cards = [
+                  {
+                    id: "panel",
+                    icon: PanelRight,
+                    title: "Show in the side panel",
+                    tag: null,
+                    on: panelOn,
+                    unavailable: false,
+                    blurb:
+                      "This agent appears in the extension's list, so you can ask it something without leaving the page you are on.",
+                    hint: "It can still do exactly what it does here — no more and no less. Everything you switch off in Capabilities stays off in the extension, immediately, with nothing to change in two places. Off by default for every agent.",
+                    onToggle: () =>
+                      save({
                         ...settings,
                         extensionEnabled: !settings.extensionEnabled,
-                      });
-                    }
-                  }}
-                >
-                  <span className="cap__mark" aria-hidden="true">
-                    {settings.extensionEnabled ? (
-                      <Check size={16} />
-                    ) : (
-                      <PanelRight size={16} />
-                    )}
-                  </span>
+                      }),
+                  },
+                  {
+                    id: "page",
+                    icon: ScanText,
+                    title: "Read the page",
+                    tag: pageBlocked
+                      ? scope === "denied"
+                        ? "Not on this account"
+                        : "Not yet on this account"
+                      : !panelOn
+                        ? "Needs the panel on"
+                        : null,
+                    on: pageOn,
+                    unavailable: pageUnavailable,
+                    blurb:
+                      "Let this agent see the page you are looking at, or the text you have selected on it, when you ask it something there.",
+                    /*
+                     * Three hints for three states, because
+                     * "switched off for this account", "not
+                     * assessed yet" and "you have not turned the
+                     * panel on" are three different problems and
+                     * only two of them are the owner's to solve.
+                     */
+                    hint: pageBlocked
+                      ? scope === "denied"
+                        ? "Reading web pages is switched off for this account. Your agent still works in the side panel — it just answers from what you type rather than from the page. This is not something you can change here."
+                        : "Reading web pages is not switched on for this account yet. Your agent still works in the side panel and answers from what you type. Nothing is being read from any page you visit."
+                      : !panelOn
+                        ? "Switch on “Show in the side panel” first. An agent that is not in the panel has no page to read."
+                        : "It only ever reads when you ask it to, on the page you asked from — never in the background, and never on any other tab. What it read is shown to you, and it is not kept afterwards. One thing worth knowing: a web page is written by a stranger, so treat what your agent says about one the way you would treat the page itself.",
+                    onToggle: () =>
+                      save({
+                        ...settings,
+                        extensionPageContext: !settings.extensionPageContext,
+                      }),
+                  },
+                ];
 
-                  <span className="cap__body">
-                    <span className="cap__title">Show in the side panel</span>
+                return cards.map((card) => {
+                  const Icon = card.icon;
+                  const hintId = `agentsec-extension-${card.id}`;
 
-                    <span className="cap__blurb">
-                      This agent appears in the extension's list, so you can
-                      ask it something without leaving the page you are on.
-                    </span>
-
-                    <span className="cap__hint">
-                      It can still do exactly what it does here — no more and
-                      no less. Everything you switch off in Capabilities stays
-                      off in the extension, immediately, with nothing to
-                      change in two places. Off by default for every agent.
-                    </span>
-                  </span>
-                </button>
-              </li>
-
-              <li>
-                <button
-                  type="button"
-                  className={
-                    !settings.extensionEnabled || pageBlocked
-                      ? "cap cap--soon"
-                      : settings.extensionPageContext
-                        ? "cap cap--on"
-                        : "cap"
-                  }
                   /*
-                   * aria-disabled rather than disabled, the same
-                   * choice CapabilitiesSection makes: the entry
-                   * stays reachable by keyboard so the
-                   * explanation below can be read, which is the
-                   * whole reason it is still on screen when it
-                   * cannot be switched on.
+                   * On means the detail is worth reading, so it
+                   * starts open there — and so does a card
+                   * nobody can switch on, where the detail is
+                   * the only thing on offer.
                    */
-                  aria-disabled={
-                    loading || !settings.extensionEnabled || pageBlocked
+                  const showHint = open[card.id] ?? (card.on || card.unavailable);
+
+                  let cardClass = "cap";
+                  if (card.unavailable) {
+                    cardClass = "cap cap--soon";
+                  } else if (card.on) {
+                    cardClass = "cap cap--on";
                   }
-                  aria-pressed={
-                    settings.extensionEnabled && !pageBlocked
-                      ? settings.extensionPageContext
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (loading || !settings.extensionEnabled || pageBlocked) {
-                      return;
-                    }
 
-                    void save({
-                      ...settings,
-                      extensionPageContext: !settings.extensionPageContext,
-                    });
-                  }}
-                >
-                  <span className="cap__mark" aria-hidden="true">
-                    {settings.extensionPageContext ? (
-                      <Check size={16} />
-                    ) : (
-                      <ScanText size={16} />
-                    )}
-                  </span>
+                  return (
+                    <li className={cardClass} key={card.id}>
+                      <button
+                        type="button"
+                        className="cap__toggle"
+                        /*
+                         * A switch, not a pressed button — it
+                         * turns something on and leaves it on.
+                         *
+                         * aria-disabled rather than disabled,
+                         * the same choice CapabilitiesSection
+                         * makes: the entry stays reachable by
+                         * keyboard so the explanation can be
+                         * read, which is the whole reason it is
+                         * still on screen when it cannot be
+                         * switched on.
+                         */
+                        role="switch"
+                        aria-checked={card.on}
+                        aria-disabled={loading || card.unavailable || undefined}
+                        onClick={() => {
+                          if (loading || card.unavailable) {
+                            return;
+                          }
 
-                  <span className="cap__body">
-                    <span className="cap__title">
-                      Read the page
-
-                      {pageBlocked ? (
-                        <span className="cap__soon">
-                          {scope === "denied"
-                            ? "Not on this account"
-                            : "Not available yet"}
+                          void card.onToggle();
+                        }}
+                      >
+                        <span className="cap__mark" aria-hidden="true">
+                          <Icon size={16} />
                         </span>
-                      ) : null}
-                    </span>
 
-                    <span className="cap__blurb">
-                      Let this agent see the page you are looking at, or the
-                      text you have selected on it, when you ask it something
-                      there.
-                    </span>
+                        <span className="cap__body">
+                          <span className="cap__title">
+                            {card.title}
 
-                    <span className="cap__hint">
-                      {pageBlocked
-                        ? /*
-                           * The two refusals say different
-                           * things because only one of them is
-                           * fixable, and a learner deserves to
-                           * know which they are looking at.
-                           */
-                          scope === "denied"
-                          ? "Reading web pages is switched off for this account. Your agent still works in the side panel — it just answers from what you type rather than from the page. This is not something you can change here."
-                          : "Reading web pages is not switched on for this account yet. Your agent still works in the side panel and answers from what you type. Nothing is being read from any page you visit."
-                        : "It only ever reads when you ask it to, on the page you asked from — never in the background, and never on any other tab. What it read is shown to you, and it is not kept afterwards. One thing worth knowing: a web page is written by a stranger, so treat what your agent says about one the way you would treat the page itself."}
-                    </span>
-                  </span>
-                </button>
-              </li>
+                            {card.tag ? (
+                              <span className="cap__tag">{card.tag}</span>
+                            ) : null}
+                          </span>
+
+                          <span className="cap__blurb">{card.blurb}</span>
+                        </span>
+
+                        <span className="cap__switch" aria-hidden="true">
+                          <span className="cap__knob" />
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="cap__more"
+                        aria-expanded={showHint}
+                        aria-controls={hintId}
+                        onClick={() =>
+                          setOpen((current) => ({
+                            ...current,
+                            [card.id]: !showHint,
+                          }))
+                        }
+                      >
+                        <ChevronDown
+                          size={13}
+                          aria-hidden="true"
+                          className="cap__chevron"
+                        />
+                        {showHint ? "Hide detail" : "What this changes"}
+                      </button>
+
+                      <p className="cap__hint" id={hintId} hidden={!showHint}>
+                        {card.hint}
+                      </p>
+                    </li>
+                  );
+                });
+              })()}
             </ul>
 
             <p className="agentsec__note">

@@ -25,18 +25,92 @@ import { WEB_ORIGIN, PAIR_PATH } from "./config.js";
  */
 
 /*
- * The toolbar click opens the side panel — and, usefully, that
- * same click is the user gesture that grants `activeTab`. The
- * permission the whole capture design rests on and the way the
- * panel is opened are therefore the same action, which is why
- * capture can never be running without the user having just
- * acted.
+ * The toolbar click opens the side panel AND grants
+ * `activeTab`, and getting both out of one click takes more
+ * care than it looks.
+ *
+ * `setPanelBehavior({ openPanelOnActionClick: true })` is the
+ * one-liner for this and it is WRONG HERE. The browser then
+ * consumes the click itself to open the panel: `onClicked`
+ * never fires, and `activeTab` — which is granted by an
+ * invocation of the extension, not by a panel appearing — is
+ * never granted at all. The panel opens, capture is refused
+ * for want of access to the tab, and nothing anywhere says
+ * why. Found on Edge, and the behaviour is Chromium's rather
+ * than Edge's.
+ *
+ * So the click is handled here instead. `onClicked` fires,
+ * which IS the invocation that grants `activeTab`, and opening
+ * the panel from inside that handler is allowed because the
+ * handler runs in a user gesture.
+ *
+ * `open()` is called FIRST THING, with nothing awaited before
+ * it. A gesture does not survive an await, so any groundwork
+ * put above this line would silently cost the panel its right
+ * to open.
  */
 chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
+  .setPanelBehavior({ openPanelOnActionClick: false })
   .catch((error) => {
     console.error("[buildgentic] could not set panel behaviour", error);
   });
+
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab?.id) {
+    return;
+  }
+
+  /*
+   * Scoped to the tab rather than the window, so the panel
+   * lives exactly as long as the permission does. `activeTab`
+   * is per-tab and lapses when that tab navigates; a panel
+   * that followed you to a different tab would look ready
+   * while holding no access to what is in front of you, which
+   * is the confusion this whole file is trying to end.
+   */
+  chrome.sidePanel.open({ tabId: tab.id }).catch((error) => {
+    console.error("[buildgentic] could not open the side panel", error);
+  });
+});
+
+/*
+ * A SECOND WAY IN, for when the first one has expired.
+ *
+ * `activeTab` lapses on navigation, so a panel left open while
+ * somebody reads three articles is a panel that can no longer
+ * read any of them. Pressing the toolbar icon again re-grants
+ * it — but a right-click is the gesture people already reach
+ * for on the page itself, and it grants `activeTab` just as
+ * the icon does.
+ *
+ * Registered on install rather than at the top level: the
+ * worker is restarted constantly, and `create` on an id that
+ * already exists is an error.
+ */
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create(
+    {
+      id: "buildgentic-ask",
+      title: "Ask BuildGentic about this page",
+      contexts: ["page", "selection"],
+    },
+    () => {
+      /* Read so that a duplicate-id complaint after a reload is
+         not an unhandled error in the console. */
+      void chrome.runtime.lastError;
+    }
+  );
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== "buildgentic-ask" || !tab?.id) {
+    return;
+  }
+
+  chrome.sidePanel.open({ tabId: tab.id }).catch((error) => {
+    console.error("[buildgentic] could not open the side panel", error);
+  });
+});
 
 /* =========================================================
    PAIRING

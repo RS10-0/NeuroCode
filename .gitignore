@@ -12,6 +12,14 @@ node_modules/
 dist/
 dist-ssr/
 
+# Chrome Web Store upload package, rebuilt by `npm run pack:extension`
+dist-extension/
+
+# An extension signing key, if one is ever generated locally. The `key`
+# field in extension/manifest.json is a PUBLIC key and belongs in git;
+# a .pem is the private half and never does.
+*.pem
+
 
 # ==========================================
 # Environment variables / secrets
