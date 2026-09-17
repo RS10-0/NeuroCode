@@ -69,6 +69,14 @@ type Behaviour =
   /* Produces some text and THEN dies. Past the commit boundary,
      so the cascade must not move past this. */
   | { kind: "diesMidStream"; text: string }
+  /*
+   * Answers in pieces, exactly as written.
+   *
+   * The harmony filter's whole difficulty is that a control
+   * token can be cut in half by a chunk boundary, so a fake
+   * that always answers in one delta cannot exercise it.
+   */
+  | { kind: "answersInChunks"; chunks: string[] }
   /* A clean 200 carrying no text at all. */
   | { kind: "empty" }
   /* Accepts the connection and says nothing, ever. */
@@ -118,6 +126,20 @@ function fakeProvider(id: ProviderId): AiProvider {
       if (behaviour.kind === "diesMidStream") {
         yield { type: "delta", text: behaviour.text };
         throw new AiRuntimeError("provider_unavailable", "died");
+      }
+
+      if (behaviour.kind === "answersInChunks") {
+        for (const chunk of behaviour.chunks) {
+          yield { type: "delta", text: chunk };
+        }
+
+        yield {
+          type: "done",
+          finishReason: "stop",
+          usage: { inputTokens: 10, outputTokens: 5, reported: true },
+        };
+
+        return;
       }
 
       yield { type: "delta", text: behaviour.text };
@@ -369,6 +391,151 @@ async function main(): Promise<void> {
     r.events.filter((e) => e === "committed").length === 1 &&
       r.events.filter((e) => e === "delta" || e === "done").length ===
         r.events.length - 1
+  );
+
+  /*
+   * ---------------------------------------------------------
+   * 11. HARMONY
+   *
+   * Slots 1 and 2 are both gpt-oss, and gpt-oss speaks a wire
+   * format with special tokens in it. When a vendor's serving
+   * layer forgets to consume them they arrive as ordinary
+   * content — which is how a scheduled digest went out reading
+   * "<|start|>assistant<|channel|>commentary to=I'm sorry…".
+   *
+   * These cases live here rather than beside the filter because
+   * this is where the filter actually runs: on the far side of
+   * the cascade, in the stream a caller sees. A unit test of the
+   * regexes would pass whether or not streamFromChain called
+   * them.
+   * --------------------------------------------------------- */
+
+  section("11. Harmony control tokens never reach the caller");
+
+  /* Every chunking a provider could plausibly produce, including
+     one character at a time — which is the split that breaks a
+     naive filter, because it cuts every token in half. */
+  const splits = [1, 2, 3, 5, 9, 17, 64, 4096];
+
+  async function throughCascade(
+    raw: string,
+    size: number
+  ): Promise<RunResult> {
+    reset();
+
+    const chunks: string[] = [];
+
+    for (let i = 0; i < raw.length; i += size) {
+      chunks.push(raw.slice(i, i + size));
+    }
+
+    behaviours.set("groq", { kind: "answersInChunks", chunks });
+
+    return run();
+  }
+
+  async function everySplit(
+    label: string,
+    raw: string,
+    expected: string
+  ): Promise<void> {
+    const wrong: string[] = [];
+
+    for (const size of splits) {
+      const result = await throughCascade(raw, size);
+
+      if (result.text !== expected) {
+        wrong.push(`${size}:${JSON.stringify(result.text)}`);
+      }
+    }
+
+    check(
+      label,
+      wrong.length === 0,
+      wrong.length > 0 ? `wanted ${JSON.stringify(expected)}, got ${wrong[0]}` : ""
+    );
+  }
+
+  /*
+   * The exact string that went out in the email, and the reason
+   * the recipient pattern is narrow. The header here is
+   * TRUNCATED — `to=` with the answer directly behind it — so a
+   * greedy recipient would eat "I’m" and deliver an apology
+   * beginning "sorry—".
+   */
+  await everySplit(
+    "the leaked header from the digest email is gone, and the apology is whole",
+    "<|start|>assistant<|channel|>commentary to=I’m sorry — I don’t have dated sources.",
+    "I’m sorry — I don’t have dated sources."
+  );
+
+  await everySplit(
+    "a complete final header leaves only the answer",
+    "<|start|>assistant<|channel|>final<|message|>The answer is 42.<|return|>",
+    "The answer is 42."
+  );
+
+  /* A real recipient must be removed WHOLE. The first draft
+     matched `to=functions` and left `.get_weather` behind. */
+  await everySplit(
+    "a tool header with a real recipient does not leave the function name behind",
+    '<|start|>assistant<|channel|>commentary to=functions.get_weather <|constrain|>json<|message|>{"city":"Oslo"}<|call|>',
+    '{"city":"Oslo"}'
+  );
+
+  await everySplit(
+    "a header with no <|start|> in front of it is still a header",
+    "<|channel|>final<|message|>Hello.",
+    "Hello."
+  );
+
+  /*
+   * The other half of the promise, and the more important half:
+   * this filter runs on EVERY answer in the product. An ordinary
+   * one must come through byte for byte — including the shapes
+   * that look a little like a control token, because a learner
+   * writing F# or a markdown table is not leaking anything.
+   */
+  await everySplit(
+    "an ordinary answer is passed through byte for byte",
+    "1 < 2, and `f <| x` is F#. | a | b |\n| - | - |\nNothing to strip.",
+    "1 < 2, and `f <| x` is F#. | a | b |\n| - | - |\nNothing to strip."
+  );
+
+  /*
+   * The commit boundary, which the filter must not move.
+   *
+   * A first chunk that is nothing but a header cleans down to an
+   * empty string. If commit waited for VISIBLE text, the
+   * first-token timer would still be running against a provider
+   * that is plainly answering — and it would be abandoned
+   * mid-answer, which is the one thing the boundary exists to
+   * prevent.
+   */
+  reset();
+  behaviours.set("groq", {
+    kind: "answersInChunks",
+    chunks: ["<|start|>assistant<|channel|>final<|message|>", "Committed."],
+  });
+  r = await run();
+  check(
+    "a first chunk that is nothing but a header still commits to that provider",
+    r.served === "groq" && r.text === "Committed.",
+    `served ${r.served}, text ${JSON.stringify(r.text)}`
+  );
+
+  /* No empty deltas: a chunk that vanishes entirely must not
+     leave an event in the trace with nothing in it. */
+  reset();
+  behaviours.set("groq", {
+    kind: "answersInChunks",
+    chunks: ["<|start|>assistant<|channel|>final<|message|>", "Text."],
+  });
+  r = await run();
+  check(
+    "a chunk that filters down to nothing does not emit an empty delta",
+    r.events.filter((e) => e === "delta").length === 1,
+    r.events.join(",")
   );
 
   console.log(

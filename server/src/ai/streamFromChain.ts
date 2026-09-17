@@ -1,4 +1,5 @@
 import { AiRuntimeError, normalizeError } from "./errors";
+import { createHarmonyFilter } from "./harmony";
 import {
   isAvailable as isProviderAvailable,
   penalise as penaliseProvider,
@@ -163,6 +164,13 @@ export async function* streamFromChain(
     let finishReason: FinishReason = "stop";
     let usage: TokenUsage | undefined;
 
+    /*
+     * Per attempt, not per request. A provider abandoned before
+     * the commit boundary must not leave half a token behind for
+     * the next one to finish.
+     */
+    const harmony = createHarmonyFilter();
+
     try {
       const provider = getProvider(candidate.providerId);
 
@@ -181,13 +189,31 @@ export async function* streamFromChain(
         attempt.signal
       )) {
         if (event.type === "delta") {
+          /*
+           * COMMITTED ON THE RAW DELTA, filtered afterwards, and
+           * that order is load-bearing.
+           *
+           * A chunk that is nothing but a harmony header cleans
+           * down to an empty string. Waiting for visible text
+           * before committing would leave the first-token timer
+           * running against a provider that is demonstrably
+           * answering — and abandoning it mid-answer is the one
+           * thing the commit boundary exists to prevent.
+           */
           if (!committed) {
             committed = true;
             clearAttemptTimer();
             yield { type: "committed", candidate };
           }
 
-          yield { type: "delta", text: event.text };
+          const visible = harmony.push(event.text);
+
+          /* An empty chunk is not an event. Forwarding one would
+             put a delta in the trace with nothing in it. */
+          if (visible.length > 0) {
+            yield { type: "delta", text: visible };
+          }
+
           continue;
         }
 
@@ -196,6 +222,30 @@ export async function* streamFromChain(
       }
 
       if (committed) {
+        /* Whatever was being held back when the stream ended —
+           a token that never completed is text the learner is
+           still owed. */
+        const tail = harmony.flush();
+
+        if (tail.length > 0) {
+          yield { type: "delta", text: tail };
+        }
+
+        /*
+         * Said once, per attempt, naming the slot.
+         *
+         * The answer was fine and the learner sees nothing wrong,
+         * which is exactly why this has to reach the log: a
+         * vendor that starts leaking its wire format is otherwise
+         * invisible until somebody reads it in an email.
+         */
+        if (harmony.leaked()) {
+          console.warn(
+            `[ai] ${candidate.providerId} (${candidate.model}) leaked harmony ` +
+              `control tokens into its answer; they were stripped.`
+          );
+        }
+
         yield { type: "done", finishReason, ...(usage ? { usage } : {}) };
         return;
       }
