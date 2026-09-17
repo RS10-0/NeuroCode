@@ -2232,6 +2232,10 @@ async function checkAdapterRequests() {
 
   const sent: Array<{ url: string; body: string }> = [];
 
+  /* Flipped mid-section to make Tavily fail the way a spent
+     allowance and a revoked key actually fail. */
+  let tavilyStatus = 200;
+
   try {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -2239,6 +2243,13 @@ async function checkAdapterRequests() {
       sent.push({ url, body: String(init?.body ?? "") });
 
       if (url.includes("tavily")) {
+        if (tavilyStatus !== 200) {
+          return new Response("{}", {
+            status: tavilyStatus,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
         return new Response(
           JSON.stringify({
             results: [
@@ -2280,6 +2291,9 @@ async function checkAdapterRequests() {
     );
     const { duckDuckGoProvider } = await import(
       "../server/src/search/providers/DuckDuckGoProvider.ts"
+    );
+    const { FALL_THROUGH } = await import(
+      "../server/src/search/types.ts"
     );
 
     const signal = new AbortController().signal;
@@ -2340,6 +2354,61 @@ async function checkAdapterRequests() {
       "but the date is still requested, because it costs nothing",
       generalBody.include_published_date === true
     );
+
+
+    /* ---- What a spent allowance looks like from here ----
+     *
+     * The chain's whole reason for existing is that a free tier
+     * is an allowance and an allowance is a cliff. Section 17
+     * proves the loop falls through when a provider cannot
+     * answer; this proves that the thing Tavily ACTUALLY DOES
+     * when its month is spent is one of the cases that loop
+     * treats as falling through.
+     *
+     * Without this, the two halves could drift apart silently:
+     * a correct fall-through mechanism, and a 429 classified as
+     * something that stops the chain, would leave an owner with
+     * no search at all on the first day of overage — and the
+     * agent answering from training data about the news.
+     */
+
+    tavilyStatus = 429;
+
+    const exhausted = await tavilyProvider
+      .search({ query: "anything", maxResults: 5 }, signal)
+      .then(
+        () => null,
+        (error: unknown) => error as { code?: string }
+      );
+
+    check(
+      "a spent Tavily allowance (429) is a fall-through, not a dead end",
+      exhausted?.code === "provider_unavailable" &&
+        FALL_THROUGH.has("provider_unavailable"),
+      `code=${exhausted?.code} — DuckDuckGo is tried next`
+    );
+
+    /* A revoked key and an expired plan arrive as 401/403, which
+       TavilyProvider maps to provider_rejected. That must fall
+       through too: a key that stopped working is exactly when
+       the keyless provider behind it earns its place. */
+    tavilyStatus = 401;
+
+    const revoked = await tavilyProvider
+      .search({ query: "anything", maxResults: 5 }, signal)
+      .then(
+        () => null,
+        (error: unknown) => error as { code?: string }
+      );
+
+    check(
+      "a revoked Tavily key is also a fall-through",
+      revoked?.code === "provider_rejected" &&
+        FALL_THROUGH.has("provider_rejected"),
+      `code=${revoked?.code}`
+    );
+
+    tavilyStatus = 200;
 
     /* ---- DuckDuckGo, the keyless fallback ---- */
 

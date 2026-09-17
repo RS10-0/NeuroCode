@@ -25,6 +25,43 @@
  *   mock       — deterministic, offline, never leaves the
  *                machine. What `mock` is to the AI runtime.
  */
+import type { AiErrorCode } from "../ai/errors";
+
+/*
+ * Failures worth asking the next provider about.
+ *
+ * `provider_unavailable` is the one that matters — it is what a
+ * spent monthly allowance looks like from here, a 429 the
+ * adapter has already retried and given up on. A timeout earns a
+ * second opinion for the same reason a slow first token does in
+ * the model chain.
+ *
+ * `provider_rejected` is here after checking what it actually
+ * covers, and the answer is credentials: TavilyProvider maps
+ * every non-429, non-5xx failure onto it, so a revoked key, an
+ * expired plan and a 403 all arrive under this code. Those are
+ * precisely the cases a chain exists for. The theoretical cost
+ * is a malformed query being refused twice, and it stays
+ * theoretical because `sanitizeQueries` has already trimmed,
+ * length-checked and stripped the query before any adapter sees
+ * it — a provider is not rejecting BuildGentic's query for being
+ * unreadable.
+ *
+ * `provider_malformed_response` likewise: a provider returning
+ * something that is not JSON is a provider having a bad day, and
+ * the next one may not be.
+ *
+ * Everything else stops the chain. `cancelled` means the learner
+ * left. A quota error is BuildGentic's own gate saying no, which
+ * trying somebody else's API does not answer.
+ */
+export const FALL_THROUGH: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
+  "provider_unavailable",
+  "provider_rejected",
+  "provider_malformed_response",
+  "timeout",
+]);
+
 export type SearchProviderId = "duckduckgo" | "brave" | "tavily" | "mock";
 
 /*
