@@ -37,6 +37,7 @@ import { httpCall } from "../server/src/agents/actions/http/request";
 import {
   ActionScanner,
   newSentinel,
+  actionLimit,
   parseAction,
   renderFailure,
   renderResult,
@@ -496,6 +497,137 @@ function checkProtocol() {
     cutResult?.ok === false && cutResult.truncated === true,
     cutResult?.ok === false ? cutResult.error.slice(0, 40) : "?"
   );
+
+
+  /* -------------------------------------------------------
+     5d. WHEN THE LOOP GIVES UP
+
+     A truncated action is the one parse failure that retrying
+     cannot fix: the action the model wants to write is longer
+     than the output budget it has, and being asked again does
+     not make the next attempt shorter.
+
+     This was measured rather than theorised. A scheduled news
+     digest produced four identical truncated attempts, four
+     model calls and the whole step budget, with a complete and
+     correctly dated answer sitting underneath that had been
+     finished before the first attempt.
+     ------------------------------------------------------- */
+
+  section("5d. WHEN THE LOOP GIVES UP");
+
+  const ceiling = Number(process.env.NEUROLINK_ACTION_MAX_STEPS ?? 4);
+
+  check(
+    "an ordinary action inside every allowance is not limited",
+    actionLimit({
+      nextStep: 1,
+      resultChars: 0,
+      truncated: false,
+      truncations: 0,
+    }) === null
+  );
+
+  check(
+    "the FIRST truncation is retried rather than ending the turn",
+    actionLimit({
+      nextStep: 1,
+      resultChars: 0,
+      truncated: true,
+      truncations: 1,
+    }) === null,
+    "one cut-off action may be a fluke"
+  );
+
+  check(
+    "the SECOND truncation ends it",
+    actionLimit({
+      nextStep: 2,
+      resultChars: 0,
+      truncated: true,
+      truncations: 2,
+    }) === "truncated",
+    "the same model with the same budget writes the same over-long action"
+  );
+
+  /*
+   * The counter is about truncation only. A model that writes
+   * malformed JSON twice is still worth correcting twice — that
+   * is a mistake feedback can fix, and it is why the retry
+   * exists at all.
+   */
+  check(
+    "a malformed action is NOT ended early, however often it repeats",
+    actionLimit({
+      nextStep: 3,
+      resultChars: 0,
+      truncated: false,
+      truncations: 2,
+    }) === null,
+    "bad JSON is correctable; a cut-off action is not"
+  );
+
+  /*
+   * Order is meaning. An allowance that has genuinely run out
+   * keeps its own reason, because that is the one carrying the
+   * useful advice — this task is bigger than one turn.
+   */
+  check(
+    "a real step limit outranks truncation",
+    actionLimit({
+      nextStep: ceiling + 1,
+      resultChars: 0,
+      truncated: true,
+      truncations: 9,
+    }) === "step_limit",
+    `step ${ceiling + 1} of ${ceiling}`
+  );
+
+  check(
+    "a spent result budget outranks truncation too",
+    actionLimit({
+      nextStep: 1,
+      resultChars: 10_000_000,
+      truncated: true,
+      truncations: 9,
+    }) === "budget"
+  );
+
+  /* -------------------------------------------------------
+     What the model is told, which differs by reason.
+     ------------------------------------------------------- */
+
+  const truncatedCopy = renderStepLimit("truncated");
+  const stepCopy = renderStepLimit("step_limit");
+
+  check(
+    "the truncation instruction says what actually happened",
+    /cut off/i.test(truncatedCopy) && !/used all/i.test(truncatedCopy),
+    truncatedCopy.split("\n")[0]
+  );
+
+  check(
+    "it does not claim an allowance was spent, which would be false",
+    !new RegExp(`all ${ceiling}`).test(truncatedCopy),
+    "the model still had steps left; it could not finish writing one"
+  );
+
+  check(
+    "the step-limit instruction still names the allowance",
+    /used all/i.test(stepCopy),
+    stepCopy.split("\n")[0]
+  );
+
+  for (const [name, copy] of [
+    ["truncated", truncatedCopy],
+    ["step_limit", stepCopy],
+  ] as const) {
+    check(
+      `${name} still forbids another tool and forbids guessing`,
+      /Do not run another tool/i.test(copy) &&
+        /Do not fill the gap with a guess/i.test(copy)
+    );
+  }
 
   section("5b. PARSING");
 

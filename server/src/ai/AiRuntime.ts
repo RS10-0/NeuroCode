@@ -20,6 +20,7 @@ import { newTurnBudget, toolsFor } from "../agents/actions/catalog";
 import { listConnections } from "../agents/actions/http/ConnectionStore";
 import {
   ActionScanner,
+  actionLimit,
   newSentinel,
   renderFailure,
   renderResult,
@@ -30,7 +31,6 @@ import {
 import type { FileScope } from "../files/FileStore";
 import { FILE_ACCEPT } from "../files/sniff";
 import {
-  actions as actionConfig,
   fileAnalysis,
   firstTokenTimeoutMs,
   memory as memoryConfig,
@@ -60,7 +60,6 @@ import { finish } from "./UsageRecorder";
 import { buildModelRequest, type ParsedChatBody } from "./validation";
 import type {
   ActionCapabilityFlags,
-  ActionLimitReason,
   ChainCandidate,
   ChatMessage,
   FinishReason,
@@ -1591,6 +1590,22 @@ export async function* runChat(
     let resultChars = 0;
     let usedTools = false;
     let closing = actionPlan === null;
+    /*
+     * How many times the model has opened an action and been cut
+     * off before closing it.
+     *
+     * Counted because a truncated action is the one parse failure
+     * that retrying cannot fix. A malformed action is a mistake
+     * the model can correct once it is told what was wrong; a
+     * truncated one means the action it wants to write is longer
+     * than the output budget it has, and nothing about being
+     * asked again makes the next attempt shorter.
+     *
+     * Measured on a real run: four identical truncated attempts,
+     * four model calls, the whole step budget spent, and an
+     * answer that had been complete since before the first one.
+     */
+    let truncations = 0;
 
     /*
      * What this turn has already spent on the two tools that
@@ -1721,12 +1736,18 @@ export async function* runChat(
 
       const nextStep = step + 1;
 
-      const limit: ActionLimitReason | null =
-        nextStep > actionConfig.maxSteps
-          ? "step_limit"
-          : resultChars >= actionConfig.totalResultChars
-            ? "budget"
-            : null;
+      if (!parsed.ok && parsed.truncated) {
+        truncations += 1;
+      }
+
+      /* The rule itself lives in protocol.ts, pure and tested
+         offline. This loop only supplies the counters. */
+      const limit = actionLimit({
+        nextStep,
+        resultChars,
+        truncated: !parsed.ok && parsed.truncated === true,
+        truncations,
+      });
 
       if (limit) {
         /*
@@ -1736,6 +1757,28 @@ export async function* runChat(
          * it writes is the answer. That is what stops this
          * being a loop that can talk its way into another turn.
          */
+
+        /*
+         * The attempt that ended it is reported first, so the
+         * trace says WHY the loop stopped rather than only that
+         * it did. Without this, a truncation-ended turn shows a
+         * bare limit with nothing above it to explain itself,
+         * and "it stopped trying" reads as "it gave up for no
+         * reason".
+         */
+        if (limit === "truncated") {
+          yield {
+            type: "tool_result",
+            step: nextStep,
+            ok: false,
+            latencyMs: 0,
+            summary: "the request was cut off again",
+            error:
+              "The agent started asking for a tool and ran out of room before it finished, twice. It stopped trying and answered with what it already had.",
+            agentSaw: parsed.ok ? undefined : parsed.error,
+          };
+        }
+
         yield { type: "tool_limit", step: nextStep, reason: limit };
 
         actionTurns.push(

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { actions } from "../../ai/config";
-import type { ActionToolId } from "../../ai/types";
+import type { ActionLimitReason, ActionToolId } from "../../ai/types";
 import { isToolId } from "./catalog";
 
 /*
@@ -493,11 +493,85 @@ export function renderUnreadable(error: string): string {
  * happen here is a silent stop, which would leave the model
  * mid-plan with no idea it will not get another turn.
  */
-export function renderStepLimit(reason: "step_limit" | "budget"): string {
+/*
+ * How many times a truncated action is worth retrying.
+ *
+ * One. A malformed action is a mistake the model can correct
+ * once it is told what was wrong, and retrying it is how a turn
+ * survives a punctuation error. A TRUNCATED action is not that:
+ * it means the action the model wants to write is longer than
+ * the output budget it has, and nothing about being asked again
+ * makes the next attempt shorter. The first retry covers the
+ * chance that the first was a fluke; the second would be the
+ * same model, the same budget, and the same result.
+ *
+ * Measured on a real scheduled run before this existed: four
+ * identical truncated attempts, four model calls, the entire
+ * step budget spent, and a complete answer sitting underneath
+ * that had been finished before the first attempt.
+ */
+export const TRUNCATION_RETRIES = 1;
+
+/*
+ * Whether the action loop must stop, and what to call it.
+ *
+ * A pure function of the loop's counters, here rather than
+ * inline in AiRuntime for the reason cadence.ts gives for
+ * nextRunAt: this is the fiddly, opinionated half, and it is the
+ * half worth being able to test with no provider, no database
+ * and no network. verify-actions.mts drives it directly.
+ *
+ * ORDER IS MEANING. The step and budget ceilings are checked
+ * before truncation so that an allowance genuinely running out
+ * keeps its own reason — which carries the more useful advice,
+ * "this task is bigger than one turn". Truncation is what is
+ * left when there was still room and the model still could not
+ * finish writing its request.
+ */
+export function actionLimit(input: {
+  /* The step this action would become — one-based. */
+  nextStep: number;
+  /* Tool output already fed back this turn. */
+  resultChars: number;
+  /* Whether THIS attempt was cut off mid-write. */
+  truncated: boolean;
+  /* How many attempts this turn have been, including this one. */
+  truncations: number;
+}): ActionLimitReason | null {
+  if (input.nextStep > actions.maxSteps) {
+    return "step_limit";
+  }
+
+  if (input.resultChars >= actions.totalResultChars) {
+    return "budget";
+  }
+
+  if (input.truncated && input.truncations > TRUNCATION_RETRIES) {
+    return "truncated";
+  }
+
+  return null;
+}
+
+export function renderStepLimit(reason: ActionLimitReason): string {
+  /*
+   * `truncated` is not an allowance running out, so it does not
+   * get the allowance's wording.
+   *
+   * The model has now opened an action twice and been cut off
+   * mid-write twice, which means its action is longer than the
+   * output budget and telling it "try again shorter" has already
+   * been tried. Saying "you have used all your actions" here
+   * would be a lie it might reasonably argue with; naming what
+   * actually happened is both true and the thing most likely to
+   * stop it reaching for the tool a third time.
+   */
   const opening =
-    reason === "budget"
-      ? "You have gathered as much tool output as this conversation has room for."
-      : `You have used all ${actions.maxSteps} of the actions allowed in one turn.`;
+    reason === "truncated"
+      ? "Your last two attempts to use a tool were both cut off before you finished writing them, so nothing ran."
+      : reason === "budget"
+        ? "You have gathered as much tool output as this conversation has room for."
+        : `You have used all ${actions.maxSteps} of the actions allowed in one turn.`;
 
   return [
     opening,

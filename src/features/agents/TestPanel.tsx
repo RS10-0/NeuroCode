@@ -1454,7 +1454,9 @@ function Acted({ steps }: { steps: ActionStep[] }) {
               <p className="turn__act-note">
                 {step.limit.reason === "budget"
                   ? "It gathered as much as this conversation had room for, and answered with that."
-                  : "It used all the actions allowed in one turn, and answered with what it had."}
+                  : step.limit.reason === "truncated"
+                    ? "Its requests kept being cut off before it finished writing them, so it stopped trying. The answer may still be complete."
+                    : "It used all the actions allowed in one turn, and answered with what it had."}
               </p>
             ) : null}
           </div>

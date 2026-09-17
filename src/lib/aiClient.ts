@@ -507,7 +507,11 @@ export interface AiMemoryWriteInfo {
 
 export type AiToolId = "run_code" | "http_request";
 
-export type AiToolLimitReason = "step_limit" | "budget";
+/* Mirrors ActionLimitReason in server/src/ai/types.ts.
+   `truncated` means the agent could not finish WRITING a
+   request, which is a different thing from running out of room
+   to make one — and wants the opposite advice. */
+export type AiToolLimitReason = "step_limit" | "budget" | "truncated";
 
 /*
  * The agent decided to do something. Fires BEFORE the tool

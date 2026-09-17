@@ -473,6 +473,27 @@ export function outcomeCopy(run: Run): OutcomeCopy {
     }
 
     case "limit_reached":
+      /*
+       * Truncation is a limit_reached run, and it is not the
+       * same story as running out of steps.
+       *
+       * The label matters as much as the sentence. "Ran out of
+       * steps" on a run whose answer was complete teaches a
+       * learner that the caution chip means nothing, which is
+       * the one thing this project's flags cannot afford — see
+       * the note above about a search that found nothing.
+       */
+      if (run.detail === "truncated") {
+        return {
+          label: "Its tool requests kept getting cut off",
+          tone: "caution",
+          meaning:
+            "It tried to use a tool, could not finish writing the request, and stopped trying. " +
+            "The answer may well be complete — read it before changing anything. If this keeps " +
+            "happening, the agent probably has a tool switched on that this task does not need.",
+        };
+      }
+
       return {
         label: "Ran out of steps",
         tone: "caution",

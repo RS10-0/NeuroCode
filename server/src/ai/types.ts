@@ -1044,7 +1044,22 @@ export type ActionToolId =
  * the prompt, which is a different problem with a different
  * fix.
  */
-export type ActionLimitReason = "step_limit" | "budget";
+/*
+ * Why the action loop stopped taking actions.
+ *
+ * The first two are allowances running out: the agent was
+ * working and there was no more room. `truncated` is a different
+ * animal and has to be told apart from them, because the advice
+ * that follows is opposite.
+ *
+ * "Ran out of steps" tells an owner their task is asking for
+ * more than one turn can do — split it, make it smaller. That is
+ * right for `step_limit` and wrong for `truncated`, where the
+ * task was fine and the agent kept getting cut off mid-request.
+ * Same badge, contradictory instruction, and the owner has no
+ * way to tell which they are looking at.
+ */
+export type ActionLimitReason = "step_limit" | "budget" | "truncated";
 
 /*
  * Which tools this turn may use.

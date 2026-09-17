@@ -219,6 +219,29 @@ function scheduleLink(agentId: string): string {
  */
 function activityLine(report: ScheduledRunReport): string {
   if (report.outcome === "limit_reached") {
+    /*
+     * Two different mornings, and the old copy called them the
+     * same one.
+     *
+     * A step limit means the agent was working and ran out of
+     * room: the task is asking for more than a turn can do, and
+     * the fix is to make it smaller. Truncation means the agent
+     * could not finish WRITING a request — its task may have
+     * been perfectly sized, and telling its owner to cut it down
+     * sends them to edit something that was never the problem.
+     *
+     * The truncation line also says the answer may be fine,
+     * because it usually is: the run this was written for had a
+     * complete, correctly dated answer sitting underneath four
+     * failed attempts to reach for a tool it did not need.
+     */
+    if (report.detail === "truncated") {
+      return [
+        "Its requests for a tool kept being cut off, so it stopped trying and answered with what it already had.",
+        "The answer below may well be complete — check it before changing anything. If this keeps happening, the agent probably has a tool switched on that this task does not need.",
+      ].join("\n");
+    }
+
     return `Ran out of its ${actionConfig.maxSteps} tool steps and answered with what it had.`;
   }
 
@@ -527,6 +550,12 @@ function humanDetail(detail: string): string {
       return "the run was interrupted and never finished";
     case "claimed_without_evidence":
       return "it reported work it had not done";
+    case "truncated":
+      return "its requests for a tool kept being cut off";
+    case "step_limit":
+      return "it used all the tool steps one turn allows";
+    case "budget":
+      return "it gathered as much tool output as one turn holds";
     default:
       return "something went wrong on our side";
   }
