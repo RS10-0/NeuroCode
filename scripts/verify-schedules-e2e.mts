@@ -1113,6 +1113,152 @@ async function checkReserve() {
 }
 
 /* =========================================================
+   8. THE EXPIRY WINDOW
+
+   The one behaviour in this feature that nothing else can
+   observe. The offline suite proves the arithmetic; only this
+   can prove that the claim function actually switches a
+   schedule off when its window runs out, that it refuses to
+   claim it in the same tick, and that enabling writes a fresh
+   window rather than carrying the spent one forward.
+========================================================= */
+
+async function checkExpiry() {
+  section("8. THE EXPIRY WINDOW");
+
+  const learner = await makeLearner("expiry");
+  const agentId = await makeAgent(
+    learner,
+    "Expiring",
+    "Answer in one short sentence.",
+    ["chat"]
+  );
+
+  const made = await callApi<{ schedule: { id: string } }>(
+    "/api/schedules",
+    learner.token,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        agentId,
+        label: "Runs out",
+        task: "Say the word ready and nothing else.",
+        cadence: "daily",
+        hourLocal: 9,
+        timezone: "UTC",
+      }),
+    }
+  );
+
+  const scheduleId = made.body.schedule.id;
+
+  /* The gate again: only a watched run opens it. */
+  await callApi(`/api/schedules/${scheduleId}/run`, learner.token, {
+    method: "POST",
+  });
+
+  const enabled = await callApi<{ schedule: { enabled: boolean; expiresAt: string | null } }>(
+    `/api/schedules/${scheduleId}/enable`,
+    learner.token,
+    { method: "POST" }
+  );
+
+  check(
+    "switching a schedule on gives it a window",
+    Boolean(enabled.body.schedule?.expiresAt),
+    `expires ${enabled.body.schedule?.expiresAt ?? "(never)"}`
+  );
+
+  const days = enabled.body.schedule?.expiresAt
+    ? (new Date(enabled.body.schedule.expiresAt).getTime() - Date.now()) /
+      86_400_000
+    : 0;
+
+  check(
+    "a daily schedule's window is a week",
+    days > 6.9 && days < 7.1,
+    `${days.toFixed(2)} days`
+  );
+
+  /*
+   * Wound forward rather than waited out, which is the only way
+   * a seven-day window is testable at all. The row is put into
+   * exactly the state it would reach on its own next Tuesday.
+   */
+  await admin
+    .from("agent_schedules")
+    .update({
+      expires_at: new Date(Date.now() - 60_000).toISOString(),
+      next_run_at: new Date(Date.now() - 60_000).toISOString(),
+    })
+    .eq("id", scheduleId);
+
+  const claimed = await claimDue(20, 900);
+
+  check(
+    "a schedule past its window is NOT claimed, even though it is due",
+    !claimed.some((row) => row.scheduleId === scheduleId),
+    `${claimed.length} claimed this tick`
+  );
+
+  const after = await admin
+    .from("agent_schedules")
+    .select("enabled, disabled_reason, next_run_at")
+    .eq("id", scheduleId)
+    .single();
+
+  check(
+    "the same tick switches it off",
+    after.data?.enabled === false,
+    `enabled ${after.data?.enabled}`
+  );
+
+  check(
+    "and records WHY, in the word the UI reads as calm rather than broken",
+    after.data?.disabled_reason === "expired",
+    `reason ${after.data?.disabled_reason}`
+  );
+
+  check(
+    "an expired schedule has no due time left",
+    after.data?.next_run_at === null,
+    `next ${after.data?.next_run_at}`
+  );
+
+  /*
+   * The revival, which is the half a learner actually performs.
+   * No second preview run: the task never changed, so the gate
+   * is still open and one click is the whole of it.
+   */
+  const revived = await callApi<{
+    schedule: { enabled: boolean; expiresAt: string | null; disabledReason: string | null };
+  }>(`/api/schedules/${scheduleId}/enable`, learner.token, { method: "POST" });
+
+  check(
+    "switching it back on takes one click and no re-test",
+    revived.status === 200 && revived.body.schedule?.enabled === true,
+    `status ${revived.status}`
+  );
+
+  const fresh = revived.body.schedule?.expiresAt
+    ? (new Date(revived.body.schedule.expiresAt).getTime() - Date.now()) /
+      86_400_000
+    : 0;
+
+  check(
+    "and starts a FRESH window rather than carrying the spent one",
+    fresh > 6.9 && fresh < 7.1,
+    `${fresh.toFixed(2)} days`
+  );
+
+  check(
+    "the expiry reason is cleared on revival",
+    revived.body.schedule?.disabledReason === null,
+    `reason ${revived.body.schedule?.disabledReason}`
+  );
+}
+
+/* =========================================================
    CLEAN UP
 ========================================================= */
 
@@ -1152,6 +1298,7 @@ try {
   const breaker = await checkBreaker();
   if (breaker) await checkNotifications(breaker.learner);
   await checkReserve();
+  await checkExpiry();
 } catch (error) {
   failed += 1;
   failures.push("the suite threw");

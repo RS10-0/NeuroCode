@@ -108,6 +108,100 @@ export function describe(cadence: Cadence): string {
 }
 
 /* =========================================================
+   HOW LONG A SCHEDULE LIVES
+
+   A schedule does not run for ever, and the reason is not
+   thrift. It is that nobody cancels something they have stopped
+   reading. A digest set up in September is still spending XP in
+   March, on an agent whose owner moved on in October, and the
+   only signal anybody gets is a balance that will not grow.
+
+   So the switch-off is the default and staying on is the
+   deliberate act. Coming back to press one button is a very
+   small price for the guarantee that an abandoned schedule
+   cannot quietly drain the XP somebody needs for lessons.
+
+   WHY A DURATION AND NOT A RUN COUNT. Both were on the table
+   and the duration is the one a person can hold in their head.
+   "It runs for a week" is something a fifteen-year-old can plan
+   around; "it gets seven runs" is an allowance they would have
+   to track. The run counts fall out of it anyway — a daily gets
+   its seven, a weekly gets its five.
+========================================================= */
+
+export const EXPIRY_DAYS: Record<Cadence, number> = {
+  /*
+   * A week for all three of the frequent cadences, and the
+   * shared number is the point rather than a coincidence nobody
+   * got round to fixing.
+   *
+   * The two interval cadences are the expensive ones — a
+   * six-hourly schedule costs about 12 XP a day against the 40
+   * a learner earns — so if any of them deserved a shorter
+   * leash it would be those. Cutting them to three days would
+   * have meant four different numbers to explain instead of
+   * two, and a rule somebody has to look up is a rule they will
+   * be surprised by.
+   */
+  every_6_hours: 7,
+  every_12_hours: 7,
+  daily: 7,
+  /*
+   * Five weeks, so a weekly schedule gets five runs rather than
+   * the single run a seven-day window would have allowed it.
+   *
+   * The window has to be measured against the cadence, not
+   * against the calendar: a week is a generous life for
+   * something that runs every day and no life at all for
+   * something that runs every Monday.
+   */
+  weekly: 35,
+};
+
+/*
+ * When a schedule enabled at `from` should switch itself off.
+ *
+ * Plain elapsed time rather than calendar arithmetic, and
+ * unlike nextRunAt this one genuinely does not care about
+ * timezones or clock changes: an hour either way on a deadline
+ * five weeks out is not a difference anybody can perceive, and
+ * pretending to that precision would be borrowing complexity
+ * for nothing.
+ */
+export function expiresAt(cadence: Cadence, from: Date): Date {
+  return new Date(from.getTime() + EXPIRY_DAYS[cadence] * 24 * 60 * 60_000);
+}
+
+/*
+ * The window in words, for the sentence that warns about it.
+ *
+ * Spelled out rather than rendered as "35 days", because the
+ * unit a person thinks in is the one the cadence is named
+ * after. Somebody setting up a weekly digest counts Mondays.
+ */
+export function describeWindow(cadence: Cadence): string {
+  return cadence === "weekly" ? "five weeks" : "a week";
+}
+
+/*
+ * Whether a run that settles now is the last one this schedule
+ * will get.
+ *
+ * Asked of the NEXT run rather than of the present moment, which
+ * is what makes the warning arrive while the schedule is still
+ * working. A schedule whose next run falls beyond its expiry
+ * will never reach it, so the run that just finished was the
+ * final one — and its notification is the last message that
+ * will be sent before the schedule goes quiet.
+ */
+export function isFinalRun(
+  nextRun: Date,
+  expires: Date | null
+): boolean {
+  return expires !== null && nextRun.getTime() >= expires.getTime();
+}
+
+/* =========================================================
    TIMEZONE ARITHMETIC
 
    Three small functions, and the awkwardness in them is real

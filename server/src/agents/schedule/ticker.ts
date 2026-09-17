@@ -149,6 +149,7 @@ export async function tickOnce(): Promise<TickResult> {
           weekdayLocal: claimed.weekdayLocal,
           timezone: claimed.timezone,
           missedRuns: claimed.missedRuns,
+          expiresAt: claimed.expiresAt,
         });
 
         await notifyRunFinished({

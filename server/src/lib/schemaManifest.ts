@@ -119,6 +119,25 @@ export const SCHEMA_PROBES: SchemaProbe[] = [
     table: "agent_email_drafts",
     column: "source_page_truncated",
   },
+  {
+    id: "0022",
+    name: "oauth_requested_grants",
+    table: "user_email_oauth_states",
+    column: "requested_grants",
+  },
+  {
+    /*
+     * The column the whole of 0023 exists for. Probing it also
+     * settles the two things in that migration a read cannot
+     * see — the widened disabled_reason constraint and the two
+     * replaced functions — because they are in the same file
+     * and are applied or not applied together.
+     */
+    id: "0023",
+    name: "schedule_expiry",
+    table: "agent_schedules",
+    column: "expires_at",
+  },
 ];
 
 /*
@@ -150,4 +169,4 @@ export const UNPROBEABLE: Array<{ id: string; name: string; why: string }> = [
 /* The newest migration this build expects. Bump it with each
    new file, so "up through the current one" is a fact in the
    code rather than something to remember. */
-export const LATEST_MIGRATION = "0021";
+export const LATEST_MIGRATION = "0023";

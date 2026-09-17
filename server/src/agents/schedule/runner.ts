@@ -10,7 +10,7 @@ import { costOf, SURCHARGES } from "../../credits/costs";
 import { snapshot } from "../../credits/CreditStore";
 import { getAgent, listKnowledge } from "../AgentStore";
 
-import { nextRunAt, type Cadence } from "./cadence";
+import { isFinalRun, nextRunAt, type Cadence } from "./cadence";
 import { inspect } from "./confabulation";
 import { buildScheduledChat } from "./scheduledRequest";
 import {
@@ -53,6 +53,17 @@ export interface ScheduledRunInput {
   weekdayLocal?: number | null;
   timezone?: string;
   missedRuns?: number;
+  /*
+   * When this schedule switches itself off, straight off the
+   * claimed row.
+   *
+   * Passed in rather than read here, because the claim is the
+   * only reader that saw it under the row lock — a second query
+   * could see a value an enable rewrote while this run was in
+   * flight, and the warning would then be about a deadline that
+   * no longer exists.
+   */
+  expiresAt?: string | null;
 }
 
 export interface ScheduledRunReport {
@@ -66,6 +77,30 @@ export interface ScheduledRunReport {
   output: string;
   claimPhrase: string | null;
   toolCalls: number;
+  /*
+   * What the web search did, and it is on the report for the
+   * same reason `documents` and `drafts` are: the notification
+   * is built from what the run ACTUALLY DID, never from what
+   * its answer says about itself.
+   *
+   * It is here because of a real failure. Web search is not an
+   * action — it happens before the loop has a first step — so a
+   * run that searched and a run that never touched the web both
+   * arrived at the notifier with `toolCalls: 0`, and the email
+   * said "Ran, without needing a tool" for both. An owner
+   * reading that about an agent whose entire job is to read the
+   * news is being told the opposite of what happened, and has
+   * no way to tell a bad answer from a failed search.
+   *
+   * `searched` is true whenever a provider was actually asked,
+   * including when it came back with nothing. A search that
+   * could not be reached at all is `searched: false` with
+   * `searchReason: "unavailable"`, which is the case worth
+   * saying out loud: the answer above it came from memory.
+   */
+  searched: boolean;
+  searchResults: number;
+  searchReason: string | null;
   /*
    * The files this run produced.
    *
@@ -93,6 +128,20 @@ export interface ScheduledRunReport {
    * the reader this capability's honesty is for.
    */
   drafts: DraftedEmailEvent[];
+  /*
+   * Whether this run was the last one this schedule will get.
+   *
+   * True when the next due time falls beyond the schedule's own
+   * expiry, so there is no run after this one to carry a
+   * warning. The notification built from this report is
+   * therefore the last message its owner receives before the
+   * digest simply stops arriving — which is exactly why it has
+   * to say so.
+   *
+   * False for a manual run, which advances nothing, and false
+   * for a schedule with no expiry.
+   */
+  finalRun: boolean;
 }
 
 /* =========================================================
@@ -359,6 +408,17 @@ export async function runScheduled(
         })
       : null;
 
+  /*
+   * Asked of the NEXT run, not of this moment, which is what
+   * makes the warning arrive while the schedule still works. A
+   * schedule whose next due time falls past its own expiry will
+   * never reach that run — so the one that just finished was the
+   * last, and this notification is the last chance to say so.
+   */
+  const finalRun =
+    due !== null &&
+    isFinalRun(due, input.expiresAt ? new Date(input.expiresAt) : null);
+
   const output = result.output.slice(0, scheduleConfig.maxOutputChars);
 
   const settled = await settleRun({
@@ -402,8 +462,12 @@ export async function runScheduled(
     output,
     claimPhrase: verdict.claimPhrase ?? null,
     toolCalls: result.toolCalls,
+    searched: result.searched,
+    searchResults: result.searchResults,
+    searchReason: result.searchReason,
     documents: result.documents,
     drafts: result.drafts,
+    finalRun,
   };
 }
 
@@ -447,8 +511,15 @@ async function finishWithoutRunning(
       output: "",
       claimPhrase: null,
       toolCalls: 0,
+      /* A run that never started never searched. */
+      searched: false,
+      searchResults: 0,
+      searchReason: null,
       documents: [],
       drafts: [],
+      /* Nothing settled and nothing advanced, so this run cannot
+         have been anybody's last. */
+      finalRun: false,
     };
   }
 
@@ -462,6 +533,17 @@ async function finishWithoutRunning(
           from: new Date(),
         })
       : null;
+
+  /*
+   * Asked of the NEXT run, not of this moment, which is what
+   * makes the warning arrive while the schedule still works. A
+   * schedule whose next due time falls past its own expiry will
+   * never reach that run — so the one that just finished was the
+   * last, and this notification is the last chance to say so.
+   */
+  const finalRun =
+    due !== null &&
+    isFinalRun(due, input.expiresAt ? new Date(input.expiresAt) : null);
 
   const settled = await settleRun({
     runId,
@@ -477,9 +559,13 @@ async function finishWithoutRunning(
     settled,
     output: "",
     claimPhrase: null,
+    searched: false,
+    searchResults: 0,
+    searchReason: null,
     toolCalls: 0,
     documents: [],
     drafts: [],
+    finalRun,
   };
 }
 

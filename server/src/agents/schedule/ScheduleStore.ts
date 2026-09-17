@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { supabase } from "../../lib/supabase";
 import { AiRuntimeError } from "../../ai/errors";
 import { schedule as scheduleConfig } from "../../ai/config";
-import { isCadence, nextRunAt, type Cadence } from "./cadence";
+import { expiresAt, isCadence, nextRunAt, type Cadence } from "./cadence";
 
 /*
  * The server's read and write of a schedule.
@@ -49,7 +49,19 @@ export type DisabledReason =
   | "consecutive_failures"
   | "confabulation"
   | "agent_unavailable"
-  | "owner";
+  | "owner"
+  /*
+   * Its window ran out — see EXPIRY_DAYS in cadence.ts.
+   *
+   * The odd member of this union. Every other machine reason
+   * here means something went wrong, and `disabledWithoutNotice`
+   * excludes only `owner` on the grounds that a learner who
+   * switched their own schedule off does not need telling. This
+   * one is neither: nothing went wrong, and nobody pressed
+   * anything, so it does need telling — it is the only way its
+   * owner finds out the digest has stopped.
+   */
+  | "expired";
 
 export interface ScheduleRecord {
   id: string;
@@ -70,6 +82,11 @@ export interface ScheduleRecord {
   consecutiveSkips: number;
   disabledAt: string | null;
   disabledReason: DisabledReason | null;
+  /* When this schedule switches itself off, or null if it never
+     will. Set on enable, cleared by nothing — a disabled row
+     keeps its old date, which is harmless because enabling
+     writes a fresh one. */
+  expiresAt: string | null;
   /* Whether the CURRENT task text has a successful preview run
      behind it. The hash itself never leaves the server — a
      browser has no use for it and publishing it would only
@@ -161,6 +178,17 @@ export interface ClaimedSchedule {
   timezone: string;
   missedRuns: number;
   dueAt: string;
+  /*
+   * Carried through the claim so the runner can tell, when this
+   * run settles, whether it was the last one this schedule will
+   * get — which is what puts the warning in the final email
+   * rather than leaving the digest to simply stop arriving.
+   *
+   * Read from the claimed row rather than fetched again, because
+   * a second query could see a different value: the expiry can
+   * be rewritten by an enable while this run is in flight.
+   */
+  expiresAt: string | null;
 }
 
 /* =========================================================
@@ -177,7 +205,7 @@ const SCHEDULE_COLUMNS =
   "id, agent_id, user_id, label, task, cadence, hour_local, weekday_local, " +
   "timezone, enabled, next_run_at, last_run_at, consecutive_failures, " +
   "consecutive_confabulations, consecutive_limits, consecutive_skips, " +
-  "disabled_at, disabled_reason, verified_task_hash, notify_email, " +
+  "disabled_at, disabled_reason, expires_at, verified_task_hash, notify_email, " +
   "notify_on_success, created_at, updated_at";
 
 const RUN_COLUMNS =
@@ -205,6 +233,7 @@ interface ScheduleRow {
   consecutive_skips: number;
   disabled_at: string | null;
   disabled_reason: string | null;
+  expires_at: string | null;
   verified_task_hash: string | null;
   notify_email: boolean;
   notify_on_success: boolean;
@@ -220,7 +249,8 @@ function asDisabledReason(value: unknown): DisabledReason | null {
   return value === "consecutive_failures" ||
     value === "confabulation" ||
     value === "agent_unavailable" ||
-    value === "owner"
+    value === "owner" ||
+    value === "expired"
     ? value
     : null;
 }
@@ -245,6 +275,11 @@ function toSchedule(row: ScheduleRow): ScheduleRecord {
     consecutiveSkips: row.consecutive_skips,
     disabledAt: row.disabled_at,
     disabledReason: asDisabledReason(row.disabled_reason),
+    /* Null on a row written before 0023, and on every row that
+       is switched off. Read as "no expiry" rather than as
+       "expired", which is the safe direction: the other reading
+       would switch off everything it could not find a date on. */
+    expiresAt: row.expires_at ?? null,
     /* Compared here rather than exported, so the gate's answer
        travels and its secret does not. */
     verified: row.verified_task_hash !== null &&
@@ -637,12 +672,25 @@ export async function enableSchedule(
     from: new Date(),
   });
 
+  /*
+   * A fresh window, every time, including on a revival.
+   *
+   * Computed here for the same reason `due` is: this is the half
+   * with the opinions in it — which cadence gets a week and which
+   * gets five — and it is the half that can be tested with no
+   * database. The function's job is to write it in the same
+   * statement as `enabled`, so "switched on" and "switched on
+   * until" can never come apart.
+   */
+  const expires = expiresAt(current.cadence, new Date());
+
   const { data, error } = await supabase.rpc("agent_schedule_enable", {
     p_schedule_id: scheduleId,
     p_user_id: userId,
     p_task_hash: taskHash(current.task),
     p_next_run_at: due.toISOString(),
     p_max_enabled: scheduleConfig.maxPerUser,
+    p_expires_at: expires.toISOString(),
   });
 
   if (error) {
@@ -722,6 +770,12 @@ export async function claimDue(
     timezone: String(row.timezone ?? "UTC"),
     missedRuns: Number(row.missed_runs ?? 0),
     dueAt: String(row.due_at),
+    /* Absent when the server is running ahead of migration 0023
+       — the claim function has no such column to return yet. A
+       null reads as "no expiry", so runs carry on unwarned
+       rather than the tick throwing on every schedule. */
+    expiresAt:
+      typeof row.expires_at === "string" ? row.expires_at : null,
   }));
 }
 

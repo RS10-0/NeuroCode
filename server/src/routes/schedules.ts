@@ -1,7 +1,11 @@
 import { Router, type Response } from "express";
 
 import { requireUser } from "../lib/auth";
-import { schedule as scheduleConfig, schedulerToken } from "../ai/config";
+import {
+  actions as actionConfig,
+  schedule as scheduleConfig,
+  schedulerToken,
+} from "../ai/config";
 import { statusFor, toErrorBody } from "../ai/errors";
 import { getAgent } from "../agents/AgentStore";
 import {
@@ -189,7 +193,10 @@ schedulesRouter.get("/", async (req, res) => {
         enabled: schedules.filter((item) => item.enabled).length,
         minIntervalMinutes: scheduleConfig.minIntervalMinutes,
         xpReserve: scheduleConfig.xpReserve,
-        maxSteps: 4,
+        /* The configured ceiling, not a copy of today's default.
+           A literal here is a number the browser cannot check
+           and an operator cannot change. */
+        maxSteps: actionConfig.maxSteps,
       },
     });
   } catch (error) {

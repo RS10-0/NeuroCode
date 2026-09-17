@@ -1,4 +1,9 @@
-import { mail, mailEnabled, publicSiteBaseUrl } from "../../ai/config";
+import {
+  actions as actionConfig,
+  mail,
+  mailEnabled,
+  publicSiteBaseUrl,
+} from "../../ai/config";
 
 import { sendMail, type MailAttachment } from "./mail";
 import {
@@ -74,7 +79,10 @@ export async function notifyRunFinished(input: NotifyInput): Promise<void> {
       kind: "schedule_disabled",
       scheduleId: input.scheduleId,
       runId: report.runId,
-      title: `“${settled.scheduleLabel}” was switched off`,
+      title:
+        settled.disabledReason === "expired"
+          ? `“${settled.scheduleLabel}” has finished its run`
+          : `“${settled.scheduleLabel}” was switched off`,
       body: disabledBody(settled.disabledReason, report, link),
       email: true,
     });
@@ -166,7 +174,7 @@ export async function notifyRunFinished(input: NotifyInput): Promise<void> {
       runId: report.runId,
       title: `“${settled.scheduleLabel}” keeps running out of steps`,
       body: [
-        `The last ${settled.consecutiveLimits} runs all used up their 4 tool steps and answered with what they had.`,
+        `The last ${settled.consecutiveLimits} runs all used up their ${actionConfig.maxSteps} tool steps and answered with what they had.`,
         "",
         "That usually means the task is asking for more than one turn can do. Try splitting it, or making it more specific about what you want back.",
         "",
@@ -189,13 +197,94 @@ function scheduleLink(agentId: string): string {
   return `${publicSiteBaseUrl}/agents/${agentId}/schedule`;
 }
 
+/*
+ * The first line: what the run actually did.
+ *
+ * It is built from the run's own counters, and it counts the
+ * WEB SEARCH as well as the tool steps — which the first
+ * version of this did not, and that omission is the whole
+ * reason this is a function rather than a ternary.
+ *
+ * A search is not an action. It happens before the loop has a
+ * first step, so it never increments `toolCalls`, so a digest
+ * built on that counter alone told an owner "Ran, without
+ * needing a tool" about a run whose entire job was to read the
+ * news — and told them exactly the same thing when the search
+ * provider had refused the request and the answer came out of
+ * the model's memory. Those are three different mornings and
+ * they were one sentence.
+ *
+ * The failed search leads, when there was one. It is the only
+ * thing here that changes how the answer below should be read.
+ */
+function activityLine(report: ScheduledRunReport): string {
+  if (report.outcome === "limit_reached") {
+    return `Ran out of its ${actionConfig.maxSteps} tool steps and answered with what it had.`;
+  }
+
+  const steps =
+    report.toolCalls > 0
+      ? `${report.toolCalls} tool ${report.toolCalls === 1 ? "step" : "steps"}`
+      : null;
+
+  /*
+   * Attempted, and could not be completed. Said plainly and
+   * first, because everything below it is now the model's own
+   * recollection wearing the clothes of a research answer — and
+   * an owner skimming a phone at seven in the morning has no
+   * other way to know that.
+   */
+  if (report.searchReason === "unavailable") {
+    return [
+      "Could not reach a web search provider.",
+      "Anything below that depends on recent events came from the model's own knowledge rather than the web — treat dates and figures in it with care.",
+      ...(steps ? [`It used ${steps}.`] : []),
+    ].join("\n");
+  }
+
+  /*
+   * Sentences rather than a clause hung off "Ran," which is
+   * what the subject line already says. The parts are ordered
+   * the way the run performed them: the search happens before
+   * the loop has a first step.
+   */
+  const web = report.searched
+    ? report.searchResults > 0
+      ? `Searched the web and read ${report.searchResults} result${
+          report.searchResults === 1 ? "" : "s"
+        }`
+      : "Searched the web and found nothing usable"
+    : null;
+
+  if (web && steps) {
+    return `${web}, then used ${steps}.`;
+  }
+
+  if (web) {
+    return `${web}.`;
+  }
+
+  if (steps) {
+    return `Used ${steps}.`;
+  }
+
+  /*
+   * Nothing happened, and there are two different nothings.
+   *
+   * A null reason means no `web_search` event was emitted at
+   * all, which is what an agent with the capability switched
+   * OFF produces — telling its owner it did not need the web
+   * would describe a choice it was never in a position to make.
+   * A reason of "not_needed" is the real choice: the web was
+   * there and it read the task and decided against it.
+   */
+  return report.searchReason === null
+    ? "Ran, without needing a tool."
+    : "Ran, without needing the web or a tool.";
+}
+
 function outputBody(report: ScheduledRunReport, link: string): string {
-  const header =
-    report.outcome === "limit_reached"
-      ? "Ran out of its 4 tool steps and answered with what it had."
-      : report.toolCalls > 0
-        ? `Ran, using ${report.toolCalls} tool ${report.toolCalls === 1 ? "step" : "steps"}.`
-        : "Ran, without needing a tool.";
+  const header = activityLine(report);
 
   const output = report.output.trim();
 
@@ -268,12 +357,36 @@ function outputBody(report: ScheduledRunReport, link: string): string {
         ]
       : [];
 
+  /*
+   * The heads-up, and where it sits is the whole of it.
+   *
+   * AFTER the answer rather than before. This email exists to
+   * deliver the digest, and a notice about scheduling pushed
+   * above the news would make the reader hunt for the thing they
+   * actually opened it for. They read the answer, then they read
+   * that there will not be another one.
+   *
+   * It is the last chance. There is no run after this one, so
+   * nothing else will be sent — the alternative to this
+   * paragraph is a digest that simply stops arriving and an
+   * owner who works it out a week later.
+   */
+  const ending = report.finalRun
+    ? [
+        "",
+        "— That was the last run. This schedule has now switched itself off.",
+        "Nothing went wrong: schedules stop on their own so one you have forgotten cannot keep spending your XP.",
+        `Switching it on again takes one click, and the task is unchanged: ${link}`,
+      ]
+    : [];
+
   return [
     header,
     "",
     shown,
     ...files,
     ...drafted,
+    ...ending,
     "",
     `See the full run: ${link}`,
   ].join("\n");
@@ -331,6 +444,35 @@ function disabledBody(
   report: ScheduledRunReport,
   link: string
 ): string {
+  /*
+   * The one disable that is not a failure, and it is first here
+   * so that nothing below can accidentally claim it.
+   *
+   * Every other branch in this function is written for somebody
+   * who has to fix something. This one is written for somebody
+   * who has to decide something, which is a different email: no
+   * failure count, no "test it before switching it back on", no
+   * suggestion that their agent did anything wrong. It ran for
+   * as long as it was set up to run, and now they choose whether
+   * to have another window.
+   *
+   * The reason is given rather than merely the fact. "Your
+   * schedule has been switched off" with no explanation reads as
+   * something being taken away; the sentence about XP is what
+   * turns it into a rule that is on their side.
+   */
+  if (reason === "expired") {
+    return [
+      "Its run has finished, and the schedule has switched itself off.",
+      "",
+      "Nothing went wrong. Schedules stop on their own after a set time so one you have forgotten about cannot keep spending the XP you need for lessons.",
+      "",
+      "The task is unchanged and still works — switching it back on is one click, and it will run for another full window.",
+      "",
+      `Start it again here: ${link}`,
+    ].join("\n");
+  }
+
   if (reason === "confabulation") {
     return [
       "Switched off after 2 runs that reported work they did not do.",
@@ -568,18 +710,49 @@ export async function reconcileDisables(): Promise<number> {
   let written = 0;
 
   for (const orphan of orphans) {
+    /*
+     * EXPIRY ARRIVES HERE AND NOWHERE ELSE, which is why this
+     * branch matters more than it looks.
+     *
+     * The breaker's disables come with a run attached, so they
+     * are announced by notifyRunFinished above and reach this
+     * function only when a process died between settling and
+     * notifying. Expiry has no run: it happens in SQL, inside
+     * the claim, to a schedule that is not going to run again.
+     * So for an expired schedule this reconciliation is not the
+     * backstop — it is the delivery path.
+     *
+     * Which means the old copy would have been what its owner
+     * actually received. "Switched off after 3 failed runs in a
+     * row", about a schedule that never failed once, with a
+     * link telling them to go and fix it.
+     */
+    const expired = orphan.reason === "expired";
+
     const id = await createNotification({
       userId: orphan.userId,
       kind: "schedule_disabled",
       scheduleId: orphan.id,
-      title: `“${orphan.label}” was switched off`,
-      body: [
-        orphan.reason === "confabulation"
-          ? "Switched off after 2 runs that reported work they did not do."
-          : "Switched off after 3 failed runs in a row.",
-        "",
-        `Fix it here: ${publicSiteBaseUrl}/agents`,
-      ].join("\n"),
+      title: expired
+        ? `“${orphan.label}” has finished its run`
+        : `“${orphan.label}” was switched off`,
+      body: expired
+        ? [
+            "Its run has finished, and the schedule has switched itself off.",
+            "",
+            "Nothing went wrong. Schedules stop on their own after a set time so one you have forgotten about cannot keep spending the XP you need for lessons.",
+            "",
+            "The task is unchanged and still works — switching it back on is one click.",
+            "",
+            `Start it again here: ${publicSiteBaseUrl}/agents`,
+          ].join("\n")
+        : [
+            orphan.reason === "confabulation"
+              ? "Switched off after 2 runs that reported work they did not do."
+              : "Switched off after 3 failed runs in a row.",
+            "",
+            `Fix it here: ${publicSiteBaseUrl}/agents`,
+          ].join("\n"),
       email: true,
     });
 

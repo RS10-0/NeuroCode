@@ -38,9 +38,12 @@ import type { Agent } from "../features/agents/types";
 import {
   CADENCE_LABEL,
   CADENCE_RUNS_PER_DAY,
+  CADENCE_WINDOW_LABEL,
+  CADENCE_WINDOW_NOUN,
   WEEKDAYS,
   createSchedule,
   deleteSchedule,
+  describeExpiry,
   describeNextRun,
   disableSchedule,
   enableSchedule,
@@ -256,6 +259,29 @@ function ScheduleForm({
         frequency. You earn 40 XP a day by logging in, plus whatever you earn
         from lessons. Runs stop automatically if your balance drops below 10 XP,
         so a schedule can never spend the XP you need for a lesson.
+      </Callout>
+
+      {/*
+       * The end date, said before it is set rather than after it
+       * arrives.
+       *
+       * It sits directly under the cost because the two are the
+       * same fact from opposite ends — what this spends, and how
+       * long it spends it for — and because the cost callout is
+       * already where somebody looks for the consequences of the
+       * control above it.
+       *
+       * Reads off the cadence currently selected, so switching
+       * the picker from daily to weekly changes the sentence
+       * from a week to five. A warning that does not track the
+       * control it is warning about is one people stop reading.
+       */}
+      <Callout tone="caution" title="It switches itself off">
+        After <strong>{CADENCE_WINDOW_LABEL[value.cadence]}</strong> this
+        schedule stops on its own, so one you forget about cannot keep
+        spending your XP. The last run tells you it is the last, and turning
+        it back on for another {CADENCE_WINDOW_NOUN[value.cadence]} is one
+        click — you will not have to set it up again.
       </Callout>
 
       <div className="schedform__toggles">
@@ -522,10 +548,25 @@ function ScheduleCard({
   onToggle,
   onDelete,
 }: ScheduleCardProps) {
+  /*
+   * Switched off by its own window, which is not a fault.
+   *
+   * Pulled out of `disabledByMachine` below rather than added to
+   * it. Everything that flag drives — a red badge, an error
+   * callout, "run it once to test before switching it back on" —
+   * is the right treatment for a schedule that broke and exactly
+   * the wrong one for a schedule that finished. The task is
+   * unchanged, still verified, and still works; telling somebody
+   * to go and test it would send them looking for a fault that
+   * is not there.
+   */
+  const expired = !schedule.enabled && schedule.disabledReason === "expired";
+
   const disabledByMachine =
     !schedule.enabled &&
     schedule.disabledReason !== null &&
-    schedule.disabledReason !== "owner";
+    schedule.disabledReason !== "owner" &&
+    !expired;
 
   /*
    * How many of the most recent runs searched and came back
@@ -558,7 +599,11 @@ function ScheduleCard({
           </Badge>
         ) : (
           <Badge tone={disabledByMachine ? "error" : "neutral"}>
-            {disabledByMachine ? "Switched off automatically" : "Off"}
+            {disabledByMachine
+              ? "Switched off automatically"
+              : expired
+                ? "Finished its run"
+                : "Off"}
           </Badge>
         )
       }
@@ -595,6 +640,31 @@ function ScheduleCard({
         </Callout>
       ) : null}
 
+      {/*
+       * The calm one, and the tone is the whole design.
+       *
+       * Nothing here asks the owner to diagnose anything, because
+       * there is nothing to diagnose: this schedule ran for as
+       * long as it was set up to and then stopped, which is the
+       * behaviour they were told about on the form before they
+       * ever switched it on. So it says what happened, why the
+       * rule exists, and where the button is.
+       */}
+      {expired ? (
+        <Callout
+          tone="caution"
+          title={`Its ${CADENCE_WINDOW_NOUN[schedule.cadence]} ${
+            schedule.cadence === "weekly" ? "are" : "is"
+          } up`}
+        >
+          Nothing went wrong — schedules stop on their own after{" "}
+          {CADENCE_WINDOW_LABEL[schedule.cadence]} so one you have forgotten
+          cannot keep spending your XP. The task is unchanged and still
+          works. <strong>Switch it on</strong> for another{" "}
+          {CADENCE_WINDOW_NOUN[schedule.cadence]}.
+        </Callout>
+      ) : null}
+
       <dl className="schedfacts">
         <div>
           <dt>How often</dt>
@@ -612,6 +682,18 @@ function ScheduleCard({
           <dt>Costs about</dt>
           <dd>{costPerDay(schedule.cadence)} XP a day</dd>
         </div>
+        {/*
+         * Only while it is running. On a schedule that is off,
+         * the expiry is either already spent — the callout above
+         * says so — or a date that means nothing, because the
+         * window restarts when it is switched back on.
+         */}
+        {schedule.enabled ? (
+          <div>
+            <dt>Switches off</dt>
+            <dd>{describeExpiry(schedule.expiresAt)}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Last run</dt>
           <dd>

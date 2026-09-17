@@ -24,10 +24,14 @@
 
 import {
   CADENCES,
+  EXPIRY_DAYS,
   describe as describeCadence,
+  describeWindow,
+  expiresAt,
   intervalMinutes,
   isCadence,
   isClockAnchored,
+  isFinalRun,
   isTimeZone,
   nextRunAt,
   runsPerDay,
@@ -948,6 +952,148 @@ checkBadInput();
 checkFloor();
 checkClaimPatterns();
 checkVerdict();
+checkExpiry();
+
+/* =========================================================
+   10. HOW LONG A SCHEDULE LIVES
+
+   The window is the promise the schedule page makes on the
+   form — "a week", "five weeks" — and the run counts are what
+   that promise actually buys. Both are asserted here, because
+   the arithmetic is easy to get subtly wrong in a way nobody
+   notices for five weeks.
+========================================================= */
+
+function checkExpiry() {
+  section("10. THE EXPIRY WINDOW");
+
+  check(
+    "every cadence has a window",
+    CADENCES.every((cadence) => EXPIRY_DAYS[cadence] > 0),
+    CADENCES.map((c) => `${c}=${EXPIRY_DAYS[c]}d`).join(" ")
+  );
+
+  check(
+    "every cadence has copy for the window",
+    CADENCES.every((cadence) => describeWindow(cadence).length > 0),
+    CADENCES.map(describeWindow).join(" / ")
+  );
+
+  /*
+   * The window must outlast the cadence, and by more than one
+   * run. A weekly schedule on a seven-day window would get a
+   * single run before switching itself off, which is not a
+   * schedule — it is a reminder with extra steps.
+   */
+  for (const cadence of CADENCES) {
+    const runs = (EXPIRY_DAYS[cadence] * 24 * 60) / intervalMinutes(cadence);
+
+    check(
+      `a ${cadence} schedule gets more than one run before it expires`,
+      runs > 1,
+      `${runs} runs`
+    );
+  }
+
+  const from = new Date("2026-06-03T08:00:00.000Z");
+
+  check(
+    "a daily schedule gets a week",
+    expiresAt("daily", from).getTime() - from.getTime() ===
+      7 * 24 * 60 * 60_000,
+    expiresAt("daily", from).toISOString()
+  );
+
+  check(
+    "a weekly schedule gets five weeks, not one",
+    expiresAt("weekly", from).getTime() - from.getTime() ===
+      35 * 24 * 60 * 60_000,
+    expiresAt("weekly", from).toISOString()
+  );
+
+  /*
+   * The counts a learner is actually promised, walked rather
+   * than divided.
+   *
+   * Stepping nextRunAt forward from the moment of enabling, up
+   * to the expiry, is the same sequence the ticker will
+   * perform — so this asserts the product's behaviour rather
+   * than a formula that happens to agree with it.
+   */
+  const countRuns = (cadence: Cadence, enabledAt: Date): number => {
+    const expires = expiresAt(cadence, enabledAt);
+
+    let at = enabledAt;
+    let runs = 0;
+
+    /* Bounded so a bug in nextRunAt cannot hang the suite. */
+    while (runs < 1000) {
+      const next = nextRunAt({
+        cadence,
+        hourLocal: 9,
+        weekdayLocal: 3,
+        timezone: "UTC",
+        from: at,
+      });
+
+      if (next.getTime() >= expires.getTime()) {
+        break;
+      }
+
+      runs += 1;
+      at = next;
+    }
+
+    return runs;
+  };
+
+  /* Enabled at 08:00 for a 09:00 run: the first run is an hour
+     away, and the seventh is the last that fits. */
+  check(
+    "a daily schedule set up at 08:00 runs seven times",
+    countRuns("daily", from) === 7,
+    `${countRuns("daily", from)} runs`
+  );
+
+  check(
+    "a weekly schedule runs five times",
+    countRuns("weekly", from) === 5,
+    `${countRuns("weekly", from)} runs`
+  );
+
+  /*
+   * The heads-up. isFinalRun is asked about the NEXT run, which
+   * is what makes the warning arrive on a run that still
+   * happened rather than after the schedule has gone quiet.
+   */
+  const expires = expiresAt("daily", from);
+
+  check(
+    "a run whose next due time is inside the window is not the last",
+    !isFinalRun(new Date(expires.getTime() - 60_000), expires)
+  );
+
+  check(
+    "a run whose next due time falls past the window is the last",
+    isFinalRun(new Date(expires.getTime() + 60_000), expires)
+  );
+
+  check(
+    "a run due exactly at the expiry is the last, because it will not happen",
+    isFinalRun(new Date(expires.getTime()), expires)
+  );
+
+  /*
+   * A schedule with no expiry never gets a last run, and never
+   * gets the warning. That is every row written before the
+   * expiry migration, and getting it wrong would tell their
+   * owners a digest was ending when it was not.
+   */
+  check(
+    "a schedule with no expiry has no final run",
+    !isFinalRun(new Date("2099-01-01T00:00:00.000Z"), null)
+  );
+}
 
 section("SUMMARY");
 console.log(`  ${passed} passed, ${failed} failed`);

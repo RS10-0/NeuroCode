@@ -456,8 +456,8 @@ raises an advisory notification and nothing else.
 ### On trip
 
 `enabled = false`, `disabled_at = now()`, `disabled_reason` ∈
-`consecutive_failures | confabulation | agent_unavailable | owner`, and a
-`schedule_disabled` notification with `email_state = 'pending'`.
+`consecutive_failures | confabulation | agent_unavailable | owner | expired`,
+and a `schedule_disabled` notification with `email_state = 'pending'`.
 
 **Re-arming is deliberate.** The enable toggle does not simply flip back. It
 requires a successful **Run once now** against the *current* task text — the
@@ -471,6 +471,74 @@ Inside `agent_schedule_settle()`, in the same statement that writes the run row.
 Not in Node, afterwards. A process that dies between "record the run" and
 "increment the counter" would produce a schedule that fails forever without ever
 tripping, and unattended is exactly where nobody notices that.
+
+---
+
+## 4a. How long a schedule lives — migration 0023
+
+A schedule has no natural end, and that is a problem the breaker does not
+solve. The breaker catches a schedule that is **broken**. Nothing catches one
+that is merely **forgotten** — every run succeeds, every email is delivered,
+and nobody has opened one since October.
+
+So `agent_schedules.expires_at` gives every enabled schedule a lifetime, and
+staying on is the deliberate act rather than the default.
+
+| cadence | window | runs it gets |
+|---|---|---|
+| `every_6_hours` | 7 days | 28 |
+| `every_12_hours` | 7 days | 14 |
+| `daily` | 7 days | **7** |
+| `weekly` | 35 days | **5** |
+
+### Why a duration and not a run count
+
+Both work. "It runs for a week" is something a fifteen-year-old can plan
+around; "it gets seven runs" is an allowance they would have to track. The run
+counts fall out of the durations anyway, and `verify-schedules.mts` asserts
+them by walking `nextRunAt` forward rather than by dividing — so the table
+above is the product's behaviour, not a formula that agrees with it.
+
+The window is measured against the cadence, not against the calendar. A week
+is a generous life for something that runs every morning and no life at all for
+something that runs every Monday, which is why `weekly` gets five weeks and
+everything else gets one.
+
+### Where each piece lives
+
+- **The numbers** — `EXPIRY_DAYS` in `agents/schedule/cadence.ts`, beside
+  `nextRunAt`, for the same reason: the opinionated half is the half that can
+  be unit-tested with no database.
+- **The write** — `agent_schedule_enable()` sets `expires_at` in the *same
+  statement* as `enabled`. Written separately from Node they could come apart,
+  and a schedule enabled with no expiry runs forever.
+- **The expiry** — step 0 of `agent_schedule_claim()`, before the claim, so a
+  schedule expiring at nine cannot also be claimed for a nine o'clock run. It
+  rides the tick rather than a timer of its own: a second scheduler to
+  supervise the first is a second thing that can stop without anybody noticing.
+- **The notice** — `reconcileDisables()` in `notify.ts`, which already sweeps
+  for schedules disabled with no notice. Expiry has no run attached, so for
+  this reason that sweep is not the backstop, it is the delivery path.
+
+### What the owner sees
+
+Two messages, and the first one arrives while the schedule still works.
+
+1. **On the last run**, appended below the digest itself: that was the last
+   run, nothing went wrong, here is the link. `runner.ts` computes `finalRun`
+   by asking whether the *next* due time falls past the expiry — which is
+   what puts the warning on a run that happened rather than after the emails
+   have already stopped.
+2. **When it switches off**, a `schedule_disabled` notification whose copy for
+   `expired` shares nothing with the breaker's. No failure count, no "test it
+   before switching it back on", no red banner in the UI — the task is
+   unchanged, still verified, and one click starts another full window.
+
+Re-arming after expiry is deliberately **not** gated on a fresh test run, which
+is the one place this differs from the breaker. The breaker fires because
+something is wrong and the test is how you find out what; expiry fires because
+time passed, and demanding proof that a working task still works would be a
+toll rather than a check.
 
 ---
 

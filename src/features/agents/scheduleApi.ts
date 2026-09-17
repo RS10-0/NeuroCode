@@ -37,7 +37,15 @@ export type DisabledReason =
   | "consecutive_failures"
   | "confabulation"
   | "agent_unavailable"
-  | "owner";
+  | "owner"
+  /*
+   * Its window ran out. The odd one in this union, and the UI
+   * has to treat it as such: every other machine reason here
+   * means something went wrong and wants a red banner, while
+   * this one means a schedule did exactly what it was set up to
+   * do for exactly as long as it was asked to.
+   */
+  | "expired";
 
 export interface Schedule {
   id: string;
@@ -57,6 +65,15 @@ export interface Schedule {
   consecutiveSkips: number;
   disabledAt: string | null;
   disabledReason: DisabledReason | null;
+  /*
+   * When this schedule switches itself off, or null if it never
+   * will — an older row, or one switched off already.
+   *
+   * Shown while it is running rather than only at the end. A
+   * deadline somebody can see coming is a deadline they can act
+   * on; one that only appears after it has passed is a surprise.
+   */
+  expiresAt: string | null;
   /*
    * Whether THIS task text has a successful preview run behind
    * it. The enable button is bound to this and nothing else —
@@ -353,6 +370,38 @@ export const CADENCE_RUNS_PER_DAY: Record<Cadence, number> = {
   weekly: 1 / 7,
 };
 
+/*
+ * How long a schedule of this cadence runs before it switches
+ * itself off, in the words the warning uses.
+ *
+ * Mirrors describeWindow in server/src/agents/schedule/cadence.ts,
+ * which is where the real numbers live. Spelled out rather than
+ * counted in days because the unit somebody thinks in is the one
+ * their cadence is named after: a person setting up a weekly
+ * digest counts Mondays, not thirty-five days.
+ */
+export const CADENCE_WINDOW_LABEL: Record<Cadence, string> = {
+  every_6_hours: "a week",
+  every_12_hours: "a week",
+  daily: "a week",
+  weekly: "five weeks",
+};
+
+/*
+ * The same window with no article on the front.
+ *
+ * Two forms rather than one because English needs two, and the
+ * first draft shipped with one: "after a week" is right and
+ * "for another a week" is not, and both came out of the same
+ * constant. This is the form for "another ___" and "its ___".
+ */
+export const CADENCE_WINDOW_NOUN: Record<Cadence, string> = {
+  every_6_hours: "week",
+  every_12_hours: "week",
+  daily: "week",
+  weekly: "five weeks",
+};
+
 export function isClockAnchored(cadence: Cadence): boolean {
   return cadence === "daily" || cadence === "weekly";
 }
@@ -427,8 +476,22 @@ export function outcomeCopy(run: Run): OutcomeCopy {
       return {
         label: "Ran out of steps",
         tone: "caution",
+        /*
+         * The number comes off THIS RUN rather than from a
+         * constant here.
+         *
+         * It used to be a literal 4, which is what the limit
+         * happens to be today — so the copy was a guess the
+         * client had no way to check, and an operator who raised
+         * NEUROLINK_ACTION_MAX_STEPS would have had it lying to
+         * every learner with nothing to notice. A run that hit
+         * the ceiling used every step there was, so its own
+         * `steps` IS the ceiling, measured rather than assumed.
+         */
         meaning:
-          "It used all 4 of its tool steps and answered with what it had. The task is probably asking for more than one turn can do.",
+          `It used all ${run.steps > 0 ? `${run.steps} of its` : "of its"} tool ` +
+          "steps and answered with what it had. The task is probably asking for " +
+          "more than one turn can do.",
       };
 
     case "confabulated":
@@ -535,6 +598,48 @@ export function describeNextRun(iso: string | null): string {
   const days = Math.round(hours / 24);
 
   return `in ${days} day${days === 1 ? "" : "s"} (${dayAndTime(when)})`;
+}
+
+/*
+ * When this schedule switches itself off.
+ *
+ * A separate function rather than describeNextRun with a
+ * different label, because two of that one's answers are wrong
+ * here. "not scheduled" describes a schedule with no next run;
+ * a schedule with no expiry is the opposite, one that keeps
+ * going. And "due now" reads as something about to happen for
+ * you rather than something about to stop.
+ *
+ * Rounded DOWN rather than to nearest, which is the one
+ * deliberate difference from the function above. "Switches off
+ * in 7 days" on something with six and a half days left is a
+ * promise of a day that is not there; a countdown should never
+ * flatter itself.
+ */
+export function describeExpiry(iso: string | null): string {
+  if (!iso) {
+    return "never";
+  }
+
+  const ms = new Date(iso).getTime() - Date.now();
+
+  if (ms <= 0) {
+    return "any moment now";
+  }
+
+  const hours = Math.floor(ms / 3_600_000);
+
+  if (hours < 1) {
+    return "in under an hour";
+  }
+
+  if (hours < 24) {
+    return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  return `in ${days} day${days === 1 ? "" : "s"}`;
 }
 
 function timeOnly(date: Date): string {
