@@ -752,6 +752,9 @@ function collector() {
               ...(event.fellBack && event.fellBack.length > 0
                 ? { fellBack: event.fellBack }
                 : {}),
+              ...(event.chain && event.chain.length > 0
+                ? { chain: event.chain }
+                : {}),
               ...(event.reason ? { reason: event.reason } : {}),
             });
           }

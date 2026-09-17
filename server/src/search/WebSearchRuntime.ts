@@ -107,6 +107,13 @@ export interface WebSearchOutcome {
    * nothing had kept it.
    */
   fellBack: Array<{ provider: SearchProviderId; code: string }>;
+  /*
+   * The chain as the runtime resolved it, not as configuration
+   * describes it. The two are supposed to agree; the whole
+   * reason this field exists is an evening spent on a case where
+   * they appeared not to.
+   */
+  chain: SearchProviderId[];
 }
 
 /*
@@ -327,6 +334,8 @@ interface QueryOutcome {
   provider: SearchProviderId;
   /* Whoever was asked before the one that answered. */
   fellBack: Array<{ provider: SearchProviderId; code: string }>;
+  /* Who COULD have been asked, in order. */
+  chain: SearchProviderId[];
 }
 
 /*
@@ -458,7 +467,12 @@ async function runQuery(
       );
     }
 
-    return { results, provider: answered.id, fellBack };
+    return {
+      results,
+      provider: answered.id,
+      fellBack,
+      chain: chain.map((entry) => entry.id),
+    };
   } finally {
     /* Always. A pending row holds one of this learner's search
        concurrency slots until the reaper sweeps it. */
@@ -502,6 +516,7 @@ export async function runWebSearch(
       results: [],
       /* Nothing was asked, so nothing was skipped. */
       fellBack: [],
+      chain: searchChainIds,
       latencyMs: 0,
       failed: false,
     };
@@ -526,6 +541,7 @@ export async function runWebSearch(
   const perQuery: SearchResult[][] = [];
   const used: SearchProviderId[] = [];
   const fellBack: Array<{ provider: SearchProviderId; code: string }> = [];
+  let chain: SearchProviderId[] = [];
   let failures = 0;
 
   for (const outcome of settled) {
@@ -533,6 +549,7 @@ export async function runWebSearch(
       perQuery.push(outcome.value.results);
       used.push(outcome.value.provider);
       fellBack.push(...outcome.value.fellBack);
+      chain = outcome.value.chain;
       continue;
     }
 
@@ -559,6 +576,9 @@ export async function runWebSearch(
     latencyMs: Date.now() - startedAt,
     failed: failures === queries.length,
     fellBack,
+    /* Empty only when every query failed before a chain was
+       resolved, which the configured order still describes. */
+    chain: chain.length > 0 ? chain : searchChainIds,
   };
 }
 

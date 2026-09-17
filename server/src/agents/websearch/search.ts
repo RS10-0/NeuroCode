@@ -280,6 +280,9 @@ export async function runAgentWebSearch(
       /* Only when it happened, so an ordinary turn's trace does
          not grow a field that is always empty. */
       ...(outcome.fellBack.length > 0 ? { fellBack: outcome.fellBack } : {}),
+      /* Always, even when it is one provider long: "who was
+         asked" is the question no other field answers. */
+      chain: outcome.chain,
     },
   };
 }

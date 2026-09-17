@@ -175,6 +175,9 @@ export interface TraceEntry {
    * is a pattern you can see and not act on.
    */
   fellBack?: Array<{ provider: string; code: string }>;
+  /* `search` only: the chain the runtime resolved, in order. Who
+     was ASKED, which neither `provider` nor `fellBack` says. */
+  chain?: string[];
 }
 
 export interface ClaimedSchedule {

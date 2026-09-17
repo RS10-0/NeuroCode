@@ -236,4 +236,20 @@ export interface WebSearchTelemetry {
    * the provider that produced it.
    */
   fellBack?: Array<{ provider: SearchProviderId; code: string }>;
+  /*
+   * The chain the runtime actually resolved for this search, in
+   * the order it would try them.
+   *
+   * `provider` says who answered and `fellBack` says who failed.
+   * Neither says who was ASKED — so a provider that is silently
+   * absent from the chain looks identical to one that was tried
+   * and won, and there is no way to tell from any record which
+   * of those happened.
+   *
+   * That cost an evening. A banner said `tavily → duckduckgo`,
+   * every run answered from duckduckgo, nothing failed, and no
+   * amount of reading could reconcile the two. This is the field
+   * that would have answered it in one line.
+   */
+  chain?: SearchProviderId[];
 }
