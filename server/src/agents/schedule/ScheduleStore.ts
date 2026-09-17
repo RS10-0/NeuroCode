@@ -165,6 +165,16 @@ export interface TraceEntry {
      allowance runs out, and this is where that becomes visible
      rather than something an operator infers from a bill. */
   provider?: string;
+  /*
+   * `search` only: who was asked first and could not answer.
+   *
+   * `provider` above says a fall-through HAPPENED. This says
+   * what went wrong, which is the half that decides whether an
+   * operator raises a timeout, tops up an allowance, or replaces
+   * a key. Without it, "tavily on Monday, duckduckgo on Tuesday"
+   * is a pattern you can see and not act on.
+   */
+  fellBack?: Array<{ provider: string; code: string }>;
 }
 
 export interface ClaimedSchedule {

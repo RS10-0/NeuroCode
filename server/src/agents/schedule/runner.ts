@@ -742,6 +742,16 @@ function collector() {
                   : "Searched the web.",
               resultCount: event.resultCount,
               provider: event.provider,
+              /*
+               * Who stepped aside, and why. Only present when it
+               * happened, and it is the whole reason this run
+               * card can explain a day when the answer was worse
+               * than usual: "tavily timeout" on the row beats
+               * guessing from the prose a week later.
+               */
+              ...(event.fellBack && event.fellBack.length > 0
+                ? { fellBack: event.fellBack }
+                : {}),
               ...(event.reason ? { reason: event.reason } : {}),
             });
           }

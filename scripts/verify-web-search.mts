@@ -241,6 +241,8 @@ interface WebSearchEvent {
   sources: WebSource[];
   latencyMs: number;
   reason?: string;
+  /* Present only when the chain fell through. */
+  fellBack?: Array<{ provider: string; code: string }>;
 }
 
 interface RetrievalEvent {
@@ -1775,6 +1777,33 @@ async function checkChain(learner: Learner) {
     "and the fallback's results actually reach the answer",
     (answer.web?.sources.length ?? 0) > 0,
     `${answer.web?.sources.length ?? 0} sources`
+  );
+
+  /*
+   * WHO STEPPED ASIDE, AND WHY.
+   *
+   * `provider` above proves a fall-through happened. On its own
+   * that is a fact an operator can see and not act on: "tavily
+   * on Monday, duckduckgo on Tuesday" does not say whether to
+   * raise a timeout, top up an allowance or replace a key.
+   *
+   * This was added after nine runs of a real schedule had to be
+   * read out of the database to notice Tavily was failing 40% of
+   * the time — and the reason still had to be guessed, because
+   * the only record of it was a stdout line that had rolled off.
+   */
+  const fellBack = answer.web?.fellBack ?? [];
+
+  check(
+    "the turn records WHICH provider stepped aside",
+    fellBack.some((hop) => hop.provider === "tavily"),
+    JSON.stringify(fellBack)
+  );
+
+  check(
+    "and why it could not answer",
+    fellBack.every((hop) => typeof hop.code === "string" && hop.code.length > 0),
+    fellBack.map((hop) => `${hop.provider}:${hop.code}`).join(", ")
   );
 
   /*

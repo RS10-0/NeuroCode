@@ -224,4 +224,16 @@ export interface WebSearchTelemetry {
      calls around them. */
   latencyMs: number;
   reason?: WebSearchReason;
+  /*
+   * Providers asked before the one that answered, with why they
+   * did not.
+   *
+   * Absent on the overwhelmingly common single-provider turn.
+   * Present, and worth reading, on the turn where a keyed
+   * provider quietly stepped aside — which is otherwise the
+   * hardest degradation in this system to see, because the
+   * answer still arrives and every durable record names only
+   * the provider that produced it.
+   */
+  fellBack?: Array<{ provider: SearchProviderId; code: string }>;
 }

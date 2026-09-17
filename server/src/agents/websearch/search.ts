@@ -277,6 +277,9 @@ export async function runAgentWebSearch(
       resultCount: outcome.results.length,
       sources: rendered.sources,
       latencyMs: outcome.latencyMs,
+      /* Only when it happened, so an ordinary turn's trace does
+         not grow a field that is always empty. */
+      ...(outcome.fellBack.length > 0 ? { fellBack: outcome.fellBack } : {}),
     },
   };
 }

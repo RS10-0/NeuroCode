@@ -90,6 +90,23 @@ export interface WebSearchOutcome {
   /* True when every query failed. One query failing out of two
      is not a failed search. */
   failed: boolean;
+  /*
+   * Providers that were asked first and could not answer, in the
+   * order they were tried.
+   *
+   * Recorded because a fall-through is otherwise INVISIBLE the
+   * moment it succeeds. `provider` names the winner, the usage
+   * row names the winner, and the warning naming the loser goes
+   * to stdout where it rolls off in a day. So a keyed provider
+   * that quietly fails four runs in ten looks, in every durable
+   * record, exactly like a keyed provider that is working.
+   *
+   * That is not hypothetical: it took a database query across
+   * nine runs to notice Tavily was failing 40% of the time, and
+   * the reason still had to be guessed at afterwards because
+   * nothing had kept it.
+   */
+  fellBack: Array<{ provider: SearchProviderId; code: string }>;
 }
 
 /*
@@ -308,6 +325,8 @@ async function attemptQuery(
 interface QueryOutcome {
   results: SearchResult[];
   provider: SearchProviderId;
+  /* Whoever was asked before the one that answered. */
+  fellBack: Array<{ provider: SearchProviderId; code: string }>;
 }
 
 /*
@@ -378,6 +397,7 @@ async function runQuery(
 
   let failure: AiRuntimeError | null = null;
   let answered: SearchProvider | null = null;
+  const fellBack: Array<{ provider: SearchProviderId; code: string }> = [];
   let results: SearchResult[] = [];
 
   try {
@@ -421,6 +441,10 @@ async function runQuery(
           `[search] ${candidate.id} ${failure.code}; falling through to ` +
             `${chain[index + 1].id}`
         );
+
+        /* The same fact the warning carries, kept where a query
+           can find it a week later. */
+        fellBack.push({ provider: candidate.id, code: failure.code });
       }
     }
 
@@ -434,7 +458,7 @@ async function runQuery(
       );
     }
 
-    return { results, provider: answered.id };
+    return { results, provider: answered.id, fellBack };
   } finally {
     /* Always. A pending row holds one of this learner's search
        concurrency slots until the reaper sweeps it. */
@@ -476,6 +500,8 @@ export async function runWebSearch(
       provider: provider.id,
       queries: [],
       results: [],
+      /* Nothing was asked, so nothing was skipped. */
+      fellBack: [],
       latencyMs: 0,
       failed: false,
     };
@@ -499,12 +525,14 @@ export async function runWebSearch(
 
   const perQuery: SearchResult[][] = [];
   const used: SearchProviderId[] = [];
+  const fellBack: Array<{ provider: SearchProviderId; code: string }> = [];
   let failures = 0;
 
   for (const outcome of settled) {
     if (outcome.status === "fulfilled") {
       perQuery.push(outcome.value.results);
       used.push(outcome.value.provider);
+      fellBack.push(...outcome.value.fellBack);
       continue;
     }
 
@@ -530,6 +558,7 @@ export async function runWebSearch(
     results: merge(perQuery, Math.max(1, webSearch.maxResults)),
     latencyMs: Date.now() - startedAt,
     failed: failures === queries.length,
+    fellBack,
   };
 }
 
