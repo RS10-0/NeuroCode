@@ -4,6 +4,7 @@ import {
   AiError,
   streamChat,
   type AiDoneInfo,
+  type AiFeature,
   type AiStartInfo,
 } from "../../lib/aiClient";
 import { buildRequest, estimateInputTokens } from "./request";
@@ -66,9 +67,16 @@ interface UseLabRunOptions {
    * push it onto the tab-local history.
    */
   onFinished: (run: LabRun) => void;
+  /*
+   * What to record this run as spending on. Defaults to the
+   * Playground's own; the Prompt Canvas runs two at once and
+   * claims "compare" for both, so the usage rows stay tellable
+   * apart. See buildRequest in request.ts.
+   */
+  feature?: AiFeature;
 }
 
-export function useLabRun({ onFinished }: UseLabRunOptions) {
+export function useLabRun({ onFinished, feature = "lab" }: UseLabRunOptions) {
   const [state, setState] = useState<LabRunState>(IDLE);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -159,7 +167,7 @@ export function useLabRun({ onFinished }: UseLabRunOptions) {
 
     try {
       await streamChat(
-        buildRequest(settings),
+        buildRequest(settings, feature),
         {
           onStart: (info) => {
             start = info;
@@ -237,7 +245,7 @@ export function useLabRun({ onFinished }: UseLabRunOptions) {
       firstTokenMs,
       estimatedInputTokens,
     });
-  }, [mintRunId]);
+  }, [mintRunId, feature]);
 
   return { state, run, stop, reset };
 }

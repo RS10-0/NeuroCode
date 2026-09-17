@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { History, RotateCcw, Trash2, X } from "lucide-react";
 
+import { relativeTime } from "./relativeTime";
 import { abbreviate, diffSettings, type LabRun } from "./types";
 
 /*
@@ -301,20 +302,4 @@ function describeOutcome(run: LabRun): {
   }
 
   return { label: "Completed", tone: "correct" };
-}
-
-function relativeTime(at: number): string {
-  const seconds = Math.round((Date.now() - at) / 1000);
-
-  if (seconds < 60) {
-    return "just now";
-  }
-
-  const minutes = Math.round(seconds / 60);
-
-  if (minutes < 60) {
-    return `${minutes} min ago`;
-  }
-
-  return `${Math.round(minutes / 60)} h ago`;
 }

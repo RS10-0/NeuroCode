@@ -32,6 +32,7 @@ import DevSites from "./pages/DevSites";
 import DevFlagships from "./pages/DevFlagships";
 import DevDesks from "./pages/DevDesks";
 import DevAiRuntime from "./pages/DevAiRuntime";
+import DevCanvas from "./pages/DevCanvas";
 
 import LessonPlayer from "./features/learn/LessonPlayer";
 
@@ -281,6 +282,17 @@ export default function App() {
 
           {import.meta.env.DEV ? (
             <Route path="/dev/desks" element={<DevDesks />} />
+          ) : null}
+
+          {/* The Prompt Canvas, outside the gate with the other
+              galleries. It is the one bench in the Lab that
+              talks to nothing — no model, no quota, no request —
+              so it is also the only one that can be exercised
+              without an account, and the same tree shaking
+              applies. */}
+
+          {import.meta.env.DEV ? (
+            <Route path="/dev/canvas" element={<DevCanvas />} />
           ) : null}
 
           {/* The AI runtime harness. Behind the auth gate, unlike

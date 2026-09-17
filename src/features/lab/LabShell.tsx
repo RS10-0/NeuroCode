@@ -46,6 +46,11 @@ import {
    available would be a different, worse choice.
    ========================================================= */
 
+/* The ids of the workspaces that exist. A union rather than a
+   string, so a typo in a tab handler is a build error rather
+   than a page that renders nothing. */
+export type WorkspaceId = "playground" | "prompt-canvas";
+
 interface Workspace {
   id: string;
   label: string;
@@ -65,9 +70,9 @@ const WORKSPACES: Workspace[] = [
   {
     id: "prompt-canvas",
     label: "Prompt Canvas",
-    hint: "Compose and version longer prompts",
+    hint: "Run two versions of a prompt and see what changed",
     icon: PenLine,
-    ready: false,
+    ready: true,
   },
   {
     id: "dataset-matrix",
@@ -104,6 +109,11 @@ const WORKSPACES: Workspace[] = [
 ========================================================= */
 
 interface LabShellProps {
+  /* Which bench is on screen. Owned by the page rather than by
+     the shell, because what the tabs switch between is the
+     page's content — the shell only draws them. */
+  workspace: WorkspaceId;
+  onWorkspace: (id: WorkspaceId) => void;
   /* Search is owned by the page, because what it filters — the
      run history — is the page's state. */
   search: string;
@@ -114,11 +124,14 @@ interface LabShellProps {
   /* False before a first prompt, when there is no configuration
      worth writing to a file. */
   canExport: boolean;
+  /* Null renders no rail and gives the width to the bench. */
   aside: ReactNode;
   children: ReactNode;
 }
 
 export default function LabShell({
+  workspace,
+  onWorkspace,
   search,
   onSearch,
   onOpenHistory,
@@ -139,13 +152,25 @@ export default function LabShell({
         canExport={canExport}
       />
 
-      <WorkspaceTabs />
+      <WorkspaceTabs active={workspace} onSelect={onWorkspace} />
 
       <div className="labmain">{children}</div>
 
-      <aside className="labside" aria-label="Experiment controls">
-        {aside}
-      </aside>
+      {/*
+        No rail at all when there is nothing to put in it.
+
+        An empty 344px column with a rule down its left edge is a
+        promise of content that never arrives, and on the
+        Canvas's opening screen — which is deliberately close to
+        empty — it was the loudest thing on the page. Omitting
+        the element lets the bench take the width back; see
+        `.labshell:not(:has(.labside))` in lab.css.
+      */}
+      {aside ? (
+        <aside className="labside" aria-label="Experiment controls">
+          {aside}
+        </aside>
+      ) : null}
     </div>
   );
 }
@@ -271,46 +296,115 @@ function LabHeader({
    than the page title, lighter than the global rail, and
    attached to the content below it by an underline rather than
    floated in a box of its own.
+
+   Two of the six are real now. They are a tablist — arrow keys
+   move between them, which is what a keyboard user expects of
+   something that looks like this — while the four that are not
+   built keep the disabled treatment they had, in place, so the
+   row still says what the Lab is going to be.
 ========================================================= */
 
-function WorkspaceTabs() {
+function WorkspaceTabs({
+  active,
+  onSelect,
+}: {
+  active: WorkspaceId;
+  onSelect: (id: WorkspaceId) => void;
+}) {
+  const ready = WORKSPACES.filter((workspace) => workspace.ready);
+
+  /*
+   * Left and right move between the tabs that exist, skipping
+   * the ones that do not — stopping on a disabled tab would be
+   * a dead end a keyboard user has to press through, and the
+   * only reason those tabs are focusable at all is so their
+   * one-line description can be read.
+   *
+   * Focus follows the selection. Only the selected tab is in the
+   * tab order, so leaving focus behind on the tab you just
+   * arrowed away from would strand it on an element with
+   * tabIndex -1 — the next Tab press would jump somewhere
+   * unrelated, and the arrow keys would appear to have moved a
+   * highlight that focus was not attached to.
+   */
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    const step =
+      event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+
+    if (step === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const index = ready.findIndex((workspace) => workspace.id === active);
+    const at = (index + step + ready.length) % ready.length;
+
+    onSelect(ready[at].id as WorkspaceId);
+
+    /* The buttons are in document order, and React keeps the
+       same DOM nodes across this re-render, so the element can
+       be focused straight away rather than after a round trip
+       through an effect. */
+    const tabs =
+      event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]');
+
+    tabs[at]?.focus();
+  }
+
   return (
     <nav className="wstabs" aria-label="Lab workspaces">
-      <ul className="wstabs__list">
-        {WORKSPACES.map(({ id, label, hint, icon: Icon, ready }) => (
-          <li key={id}>
-            {ready ? (
-              <span className="wstab wstab--on" aria-current="page">
-                <Icon size={15} aria-hidden="true" />
-                {label}
-              </span>
-            ) : (
-              /*
-               * A disabled button rather than a dead link. It
-               * stays in the tab order so a keyboard user can
-               * read what is coming, announces itself as
-               * unavailable, and carries its one-line
-               * description as a title for anyone hovering.
-               */
-              <button
-                type="button"
-                className="wstab"
-                aria-disabled="true"
-                title={hint}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {label}
-                <span className="wstab__soon">Soon</span>
-              </button>
-            )}
-          </li>
-        ))}
+      <ul className="wstabs__list" role="tablist" onKeyDown={handleKeyDown}>
+        {WORKSPACES.map(({ id, label, hint, icon: Icon, ready: built }) => {
+          const on = built && id === active;
+
+          return (
+            <li key={id} role="presentation">
+              {built ? (
+                <button
+                  type="button"
+                  role="tab"
+                  className={on ? "wstab wstab--on" : "wstab"}
+                  aria-selected={on}
+                  /* Only the selected tab is in the tab order;
+                     the arrow keys reach the rest. Anything else
+                     makes a six-item row six stops on the way to
+                     the workbench. */
+                  tabIndex={on ? 0 : -1}
+                  title={hint}
+                  onClick={() => onSelect(id as WorkspaceId)}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {label}
+                </button>
+              ) : (
+                /*
+                 * A disabled button rather than a dead link. It
+                 * stays in the tab order so a keyboard user can
+                 * read what is coming, announces itself as
+                 * unavailable, and carries its one-line
+                 * description as a title for anyone hovering.
+                 */
+                <button
+                  type="button"
+                  className="wstab"
+                  aria-disabled="true"
+                  title={hint}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {label}
+                  <span className="wstab__soon">Soon</span>
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {/* The active workspace's own line, which is the one worth
           reading. The rest carry theirs on hover. */}
       <p className="wstabs__hint">
-        {WORKSPACES.find((workspace) => workspace.ready)?.hint}
+        {WORKSPACES.find((workspace) => workspace.id === active)?.hint}
       </p>
     </nav>
   );

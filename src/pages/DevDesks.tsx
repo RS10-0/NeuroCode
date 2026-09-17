@@ -116,7 +116,11 @@ export default function DevDesks() {
         </div>
       </div>
 
-      <div className="agentshell">
+      {/* The Builder pins .agentshell to the viewport so its
+          two columns scroll themselves. This gallery puts a
+          picker above it and wants the page to scroll instead,
+          so it hands the height back. */}
+      <div className="agentshell" style={{ height: "auto" }}>
         <div className="agentwork">
           <FlagshipDesk
             /* Remounted per agent so no section keeps the

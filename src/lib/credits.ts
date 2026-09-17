@@ -23,6 +23,9 @@ import { authHeaders } from "./api";
 
 export interface CreditCosts {
   lab: number;
+  /* One side of a Prompt Canvas comparison. The bench sends two
+     per action and multiplies. */
+  compare: number;
   agentTest: number;
   agentPublic: number;
 }

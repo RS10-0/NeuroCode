@@ -6,7 +6,10 @@ picture, then what to do in each one.
 ```
   learner's browser
         │
-        │  buildgentic.com          (Vercel — static SPA build)
+        │  www.buildgentic.com      (Vercel — static SPA build)
+        │  the apex 308-redirects here, so www is the origin
+        │  everything else has to name.
+        │
         │  vercel.json rewrites /api/* to Render, so every
         │  existing fetch("/api/...") call in src/ keeps
         │  working unchanged — the browser never sees a
@@ -107,16 +110,46 @@ Render sets `PORT` itself; `server/src/index.ts` already reads
 | --- | --- | --- |
 | `SUPABASE_URL` | your Supabase project URL | database + auth |
 | `SUPABASE_SECRET_KEY` | the project's **service role** key | bypasses RLS server-side — keep this out of anywhere a browser can read it |
-| `NEUROLINK_ALLOWED_ORIGINS` | `https://buildgentic.com` | CORS — see the warning below |
+| `NEUROLINK_ALLOWED_ORIGINS` | `https://www.buildgentic.com,https://buildgentic.com` | CORS — see the two warnings below |
 | `NEUROLINK_PUBLIC_API_URL` | `https://api.buildgentic.com` | what a deployed agent's own endpoint reports itself as |
-| `NEUROLINK_PUBLIC_SITE_URL` | `https://buildgentic.com` | what a published agent page's link actually says, instead of localhost |
+| `NEUROLINK_PUBLIC_SITE_URL` | `https://www.buildgentic.com` | what a published agent page's link actually says, instead of localhost |
+| `NEUROLINK_SECRET_KEY` | 32 random bytes as hex — `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | seals every credential a learner connects (API keys, Gmail refresh tokens) before it is stored |
 
 > **`NEUROLINK_ALLOWED_ORIGINS` does not fail open.** Read
 > `server/src/index.ts`'s CORS setup: when this is unset, the server
 > assumes it's a dev machine and only widens the allowlist to
 > `localhost`/`127.0.0.1`. Deploy without setting it and *every* request
-> from `buildgentic.com` gets refused by CORS — not a security hole, but
-> a completely broken production site that looks like a network outage.
+> from the site gets refused by CORS — not a security hole, but a
+> completely broken production site that looks like a network outage.
+
+> **Note the `www.`, and that it is first.** The apex `buildgentic.com`
+> answers every path with a 308 redirect to `www.buildgentic.com`, so the
+> origin a browser actually presents is the `www` one. An allowlist naming
+> only the apex is an allowlist naming the one origin that never appears.
+> The apex is kept in the list purely so that this stops being a trap if
+> the redirect is ever removed.
+>
+> This does not currently break the site, and the reason is worth knowing
+> before you go looking: `vercel.json` rewrites `/api/*` to the Render
+> service **server-side**, so the browser's own request is same-origin and
+> reaches the API with no `Origin` header at all — which the CORS handler
+> allows outright (`if (!origin || ...)`). The allowlist only governs
+> *direct* browser calls to `api.buildgentic.com`. So a wrong value here
+> fails silently until the first such call, rather than at deploy.
+
+> **`NEUROLINK_SECRET_KEY` fails quietly, and it fails a whole feature.**
+> Nothing checks it at boot: `crypto.ts` reads it the first time something
+> is sealed, warns once to the log, and returns null forever after. So the
+> site comes up healthy, agents run, and only *connections* are broken —
+> the Email Agent reports itself unconfigured (`/email/status` returns
+> `configured: false` when either the Gmail client or this key is missing),
+> and any connected API key refuses to save. If you set all three Gmail
+> variables and the capability still says it is not configured, this is
+> why.
+>
+> Changing it later is not free: it does not re-encrypt what is already
+> stored, so every existing connection becomes unreadable and has to be
+> reconnected. Generate it once, keep it.
 
 **Optional** — every one of these already has a working fallback in
 `server/src/ai/config.ts` (the app runs on an offline Mock AI provider and
@@ -126,30 +159,75 @@ actually want live:
 - Model providers: `NEUROLINK_GROQ_API_KEY`, `NEUROLINK_CLOUDFLARE_ACCOUNT_ID`
   + `NEUROLINK_CLOUDFLARE_API_TOKEN`, `NEUROLINK_OPENROUTER_API_KEY`,
   `NEUROLINK_MISTRAL_API_KEY`, `NEUROLINK_GEMINI_API_KEY`
-- Web search: `NEUROLINK_BRAVE_SEARCH_KEY` or `NEUROLINK_TAVILY_API_KEY`
-  (and `NEUROLINK_WEB_SEARCH_PROVIDER` to pick one)
+- Web search: `NEUROLINK_TAVILY_API_KEY` plus
+  `NEUROLINK_WEB_SEARCH_PROVIDER=tavily`. Worth treating as
+  near-required rather than optional: the keyless DuckDuckGo default
+  bot-challenges often enough that any task needing live information
+  quietly answers from training data instead — see the run card's
+  "found nothing" state, which exists because of exactly that.
+  Tavily's free tier is 1,000 credits a month with no card. Brave
+  (`NEUROLINK_BRAVE_SEARCH_KEY`) is equally supported but wants a card
+  on file.
 - Email (scheduled-run notifications): `NEUROLINK_RESEND_API_KEY`,
-  `NEUROLINK_MAIL_FROM`
+  `NEUROLINK_MAIL_FROM`. The from-address must be on a domain verified with
+  Resend. There is no default, deliberately — a plausible one would produce
+  sends that fail at the provider rather than here.
+- Scheduler, **required on any host that sleeps when idle, which the Render
+  free instance does**: `NEUROLINK_SCHEDULER=external` plus
+  `NEUROLINK_SCHEDULER_TOKEN`, and the same token as a GitHub repository
+  secret so `.github/workflows/scheduler-tick.yml` can POST
+  `/internal/scheduler/tick`. Left unset the in-process ticker runs, which is
+  correct on an always-on instance and silently dead on one that spins down —
+  no error, no log line, just schedules that never fire. Confirm which mode is
+  live from the startup banner: `[schedule] scheduler: external — no timer
+  here`.
 - Every rate limit / budget knob in `server/.env.example` has a sane
   default — only touch these if you specifically want different numbers
   than what ships.
 
-**Not yet:**
+**When the Chrome extension is packaged:**
 
-- `NEUROLINK_EXTENSION_ORIGIN`: leave unset until the Chrome extension has
-  a real published id. See [below](#chrome-extension-when-you-publish-it).
-- `NEUROLINK_GMAIL_REDIRECT_URI`: **Gmail OAuth is not being enabled for
-  this initial deployment — do not set this.** It only matters once the
-  Email Agent's Gmail connection is turned on (`NEUROLINK_GMAIL_CLIENT_ID`
-  + `NEUROLINK_GMAIL_CLIENT_SECRET` set). Until then it is inert —
-  `server/src/ai/config.ts`'s own comment says "with these unset,
-  everything on the Email screen works up to the redirect." When you do
-  enable it: set `NEUROLINK_GMAIL_REDIRECT_URI` to
-  `https://api.buildgentic.com/api/agents/email/callback` on Render, and
-  register that *exact* URL (Google compares it character-for-character)
-  in the Google Cloud Console's OAuth client — otherwise it silently keeps
-  its default of `http://localhost:3001/api/agents/email/callback`, which
-  fails the consent screen with `redirect_uri_mismatch` in production.
+- `NEUROLINK_EXTENSION_ORIGIN=chrome-extension://<id>` — one exact origin,
+  never a `chrome-extension://*` wildcard, and checked independently of
+  `NEUROLINK_ALLOWED_ORIGINS` (`isAllowedOrigin` in
+  `server/src/index.ts`). Putting the extension origin in the allowlist
+  instead is a common wrong guess and does not work.
+
+  The id is not something you can pick. It is derived from the
+  extension's public key, and for a published item that key belongs to the
+  Web Store — which is why `extension/manifest.json` pins a `key` field
+  taken from the Store rather than one generated locally. The procedure is
+  in `extension/README.md` under "Pinning the extension id"; the short
+  version is `npm run pack:extension`, upload the zip as a **draft** item,
+  copy the public key off the Package tab, paste it into the manifest, and
+  run `node extension/verify-key.js` to print the exact value to set here.
+  Set `VITE_EXTENSION_ID` to the same id on Vercel.
+
+**Gmail (the Email Agent):**
+
+Three variables, all three or none — the capability is refused at the
+connect route with a message saying so if any is missing, and every other
+capability is unaffected:
+
+- `NEUROLINK_GMAIL_CLIENT_ID`
+- `NEUROLINK_GMAIL_CLIENT_SECRET`
+- `NEUROLINK_GMAIL_REDIRECT_URI=https://api.buildgentic.com/api/agents/email/callback`
+
+Register that redirect URI *character for character* on the OAuth client
+in the Google Cloud Console. Google compares it as a literal string, and a
+mismatch produces `redirect_uri_mismatch` at the consent screen — before
+any of this server's code runs, so nothing here can catch or explain it.
+Unset, it defaults to `http://localhost:3001/api/agents/email/callback`,
+which fails exactly that way in production. The `agents` segment in the
+middle is where `emailRouter` is mounted and is not optional.
+
+The scopes requested are **not a fixed list**: `openid` and `email`
+always, plus one Gmail scope per capability the user actually grants
+(`gmail.readonly`, `gmail.compose`, `gmail.send`, `gmail.modify` — see
+`SCOPE_FOR` in `providers/GmailProvider.ts`). All four are Google
+*restricted* scopes, so a project serving users outside itself needs OAuth
+verification and an annual third-party security assessment. Testing mode,
+with test users added by hand, is what this runs on until then.
 
 ### Custom domain
 
@@ -173,28 +251,50 @@ If your registrar can't do an apex ALIAS/ANAME record, Vercel's domain
 screen offers a `www.buildgentic.com` CNAME + redirect setup instead — it
 walks you through whichever your DNS provider supports.
 
+**As actually deployed, `www` is the canonical host.** The apex resolves to
+Vercel and then 308-redirects every path to `www.buildgentic.com`, so
+anything that compares an origin — the CORS allowlist, the extension's
+`externally_connectable` and `WEB_ORIGIN`, an OAuth redirect URI, the
+Supabase Site URL — must name the `www` host. The apex is a redirect, not
+an origin anything runs on.
+
+One practical note if a domain ever looks dead from your own machine:
+check it against a public resolver (`nslookup buildgentic.com 8.8.8.8`) or
+force the address (`curl --resolve buildgentic.com:443:<ip> ...`) before
+concluding the DNS is wrong. A local router or ISP resolver can serve the
+previous record long after a cutover, and it looks exactly like a failed
+change.
+
 ## Supabase dashboard
 
 The app currently has no OAuth or magic-link redirect code (auth is plain
 email/password), so there is no code depending on this — but set it
 anyway so any future email-based flow doesn't quietly point at localhost:
 
-**Authentication → URL Configuration → Site URL**: `https://buildgentic.com`
+**Authentication → URL Configuration → Site URL**:
+`https://www.buildgentic.com`
 
-## Chrome extension, when you publish it
+## Chrome extension
 
-Not part of this deploy — there is no stable extension id yet, so nothing
-here is wired up now. `server/src/index.ts` already has the mechanism
-ready (`NEUROLINK_EXTENSION_ORIGIN`, checked independently of
-`NEUROLINK_ALLOWED_ORIGINS`); when the extension is published:
+`extension/config.js` and `extension/manifest.json` already point at
+production — `https://api.buildgentic.com` and `https://www.buildgentic.com`.
+Those two files hold **three** origin strings that must agree character for
+character (`WEB_ORIGIN`, `externally_connectable.matches`, and the strict
+comparison in `sw.js`), and a mismatch does not error: it produces a
+pairing that silently never completes.
 
-1. Add the real id to `extension/manifest.json`'s `host_permissions` and
-   `externally_connectable` (see the production snippet already sketched
-   in `docs/phase-4-browser-extension.md`).
-2. Set `NEUROLINK_EXTENSION_ORIGIN=chrome-extension://<the real id>` on
-   Render.
-3. Set `VITE_EXTENSION_ID=<the real id>` on Vercel, so the
+What is left is the id, which cannot be chosen — it is derived from the
+extension's public key, and for a published item that key is the Web
+Store's. Follow "Pinning the extension id" in `extension/README.md`, then:
+
+1. Set `NEUROLINK_EXTENSION_ORIGIN=chrome-extension://<the real id>` on
+   Render — one exact origin, never a wildcard.
+2. Set `VITE_EXTENSION_ID=<the real id>` on Vercel, so the
    `/extension/connect` pairing page can hand the token over.
+
+`node extension/verify-key.js` prints both values from the key actually in
+the manifest, so they are copied from a computed result rather than retyped
+from a dashboard.
 
 ## Verifying after you deploy
 
@@ -202,15 +302,26 @@ ready (`NEUROLINK_EXTENSION_ORIGIN`, checked independently of
 # The backend answers on its own domain
 curl https://api.buildgentic.com/api/health
 
-# CORS is actually configured — run from the browser console on
-# https://buildgentic.com, should resolve rather than throw
-fetch("https://api.buildgentic.com/api/health").then(r => r.json())
+# The allowlist names the origin the site actually runs on. Echoes the
+# origin back when allowed; sends no ACAO header when refused.
+curl -sI -H "Origin: https://www.buildgentic.com" \
+  https://api.buildgentic.com/api/health | grep -i access-control-allow-origin
+
+# And still refuses one it should not know
+curl -sI -H "Origin: https://not-your-site.example" \
+  https://api.buildgentic.com/api/health | grep -i access-control-allow-origin
 ```
 
-- Load `https://buildgentic.com/dashboard` (or any deep route) directly,
-  not by clicking through from `/` — confirms the SPA rewrite in
+- Load `https://www.buildgentic.com/dashboard` (or any deep route)
+  directly, not by clicking through from `/` — confirms the SPA rewrite in
   `vercel.json` is serving `index.html` rather than 404ing.
-- Publish an agent and confirm its link reads `https://buildgentic.com/…`,
-  not `localhost` — confirms `NEUROLINK_PUBLIC_SITE_URL` took effect.
+- Publish an agent and confirm its link reads
+  `https://www.buildgentic.com/…`, not `localhost` — confirms
+  `NEUROLINK_PUBLIC_SITE_URL` took effect.
 - Sign up or log in — confirms Supabase auth is reachable and CORS is
   correctly passing the `Authorization` header through.
+
+Note that the first CORS check passing does **not** prove the site works,
+and failing does not prove it is broken: app traffic goes through Vercel's
+server-side `/api/*` rewrite and never presents an `Origin` at all. The
+check is about direct calls to the API.

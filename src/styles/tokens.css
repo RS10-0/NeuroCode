@@ -213,6 +213,38 @@
 
   /* The Lab's own frame. */
   --labside-width: 344px;
+
+  /*
+   * THE TWO HALVES OF A PROMPT
+   *
+   * One hue for the standing rules, one for the thing being
+   * asked. The Prompt Canvas walks a learner through building a
+   * request a question at a time, and colour is what tells them
+   * — before they have read a word — that the four things they
+   * just answered belong together and the fifth is a different
+   * kind of thing.
+   *
+   * Sage is the Lab's own accent, already carrying "the setup"
+   * by being the colour of the workspace. Indigo is the second,
+   * chosen because it is the only other hue that can sit on
+   * alabaster without either fighting the sage or being mistaken
+   * for a state: warm reds and ambers are already spoken for by
+   * --error and --caution, and a learner should never wonder
+   * whether their own prompt is warning them about something.
+   *
+   * Declared here rather than in lab.css because this file owns
+   * every value in the product and component stylesheets read
+   * only names.
+   */
+  --half-setup: var(--accent);
+  --half-setup-bg: var(--accent-bg);
+  --half-setup-rule: var(--accent-rule);
+  --on-half-setup: var(--on-accent);
+
+  --half-ask: #3f5570;
+  --half-ask-bg: #e8edf3;
+  --half-ask-rule: #bfcedd;
+  --on-half-ask: #fffdf9;
 }
 
 /* =========================================================

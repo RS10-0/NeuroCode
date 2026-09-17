@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Callout, Skeleton } from "../components/ui";
 import { useAuth } from "../auth/useAuth";
@@ -9,7 +9,9 @@ import type {
   AiUsageReport,
 } from "../lib/aiClient";
 
-import LabShell from "../features/lab/LabShell";
+import LabShell, { type WorkspaceId } from "../features/lab/LabShell";
+import CompareBench from "../features/lab/compare/CompareBench";
+import { useExperiment } from "../features/lab/compare/useExperiment";
 import NeuralResponse from "../features/lab/NeuralResponse";
 import ParameterControls from "../features/lab/ParameterControls";
 import PromptWorkspace from "../features/lab/PromptWorkspace";
@@ -148,6 +150,50 @@ function Workbench({
   const [settings, setSettings] = useState<LabSettings>(() =>
     initialSettings(info)
   );
+
+  /* ---------------------------------------------------------
+     WHICH BENCH
+
+     In the URL rather than in component state, so a link to the
+     Canvas is a link to the Canvas and Back returns to the
+     workspace you came from.
+
+     A push rather than a replace, which does cost a history
+     entry per tab flip. The alternative is worse: the moment
+     that matters is Send to Playground, and a learner who
+     presses Back straight afterwards means "take me back to my
+     canvas" — not "leave the Lab".
+     --------------------------------------------------------- */
+
+  const [params, setParams] = useSearchParams();
+
+  const workspace: WorkspaceId =
+    params.get("w") === "canvas" ? "prompt-canvas" : "playground";
+
+  const goToWorkspace = useCallback(
+    (next: WorkspaceId) => {
+      setParams((current) => {
+        const updated = new URLSearchParams(current);
+
+        if (next === "prompt-canvas") {
+          updated.set("w", "canvas");
+        } else {
+          updated.delete("w");
+        }
+
+        return updated;
+      });
+    },
+    [setParams]
+  );
+
+  /*
+   * Mounted whichever tab is showing, so an experiment survives
+   * flipping to the Playground and back without a round trip
+   * through storage. It writes nothing until the bench is
+   * actually used — see `touched` in useExperiment.
+   */
+  const experiment = useExperiment(userId, initialSettings(info));
 
   const { credits, canAfford, refresh: refreshCredits } = useCredits();
 
@@ -309,12 +355,35 @@ function Workbench({
      RENDER
      --------------------------------------------------------- */
 
+  const onCanvas = workspace === "prompt-canvas";
+
+  /*
+   * A comparison is two requests, so it costs twice.
+   *
+   * Said on the button rather than discovered afterwards. The
+   * flat per-action price in server/src/credits/costs.ts exists
+   * precisely so a learner never has to hesitate over what
+   * pressing Run costs — which only works if the number is on
+   * the control.
+   */
+  const compareCost = (credits?.costs.compare ?? 1) * 2;
+  const canCompare = models.length > 0 && canAfford(compareCost);
+
+  const compareBlocked =
+    models.length === 0
+      ? "This BuildGentic server has no usable AI configured."
+      : !canAfford(compareCost)
+        ? `A comparison costs ${compareCost} XP and your balance is spent. Finish a lesson to earn more.`
+        : null;
+
   return (
     /* Full-bleed inside the shell's main column, and the only
        place the Lab's warm palette applies — the global rail
        keeps BuildGentic's own. */
     <div className="page page--flush labsurface">
       <LabShell
+        workspace={workspace}
+        onWorkspace={goToWorkspace}
         search={search}
         onSearch={setSearch}
         onOpenHistory={() => setHistoryOpen(true)}
@@ -322,26 +391,51 @@ function Workbench({
         onExport={exportConfig}
         canExport={settings.prompt.trim().length > 0}
         aside={
-          <>
-            <ParameterControls
-              settings={settings}
-              model={model}
-              errors={errors}
-              disabled={streaming}
-              onChange={patch}
-            />
+          onCanvas ? (
+            /*
+             * The Canvas has no rail at all.
+             *
+             * It walks a learner through one question at a time,
+             * and a column of instruments beside a question is
+             * the thing that walkthrough exists to avoid.
+             * Everything that used to live here — the blanks,
+             * the storage note — is on the overview, which is
+             * the screen where having more than one thing on it
+             * is the point.
+             */
+            null
+          ) : (
+            <>
+              <ParameterControls
+                settings={settings}
+                model={model}
+                errors={errors}
+                disabled={streaming}
+                onChange={patch}
+              />
 
-            <WhatChanged runs={runs} />
+              <WhatChanged runs={runs} />
 
-            <UnderTheHood
-              settings={settings}
-              model={model}
-              limits={limits}
-              state={runState}
-            />
-          </>
+              <UnderTheHood
+                settings={settings}
+                model={model}
+                limits={limits}
+                state={runState}
+              />
+            </>
+          )
         }
       >
+        {/*
+          The meters and the availability notice belong to both
+          benches, because both of them spend.
+
+          They used to be inside the Playground's branch, back
+          when the Canvas composed text and ran nothing. It runs
+          two requests now and charges for both, so hiding what a
+          learner has left on the screen that spends fastest
+          would be exactly backwards.
+        */}
         <UsageMeters usage={usage} />
 
         {/* Before the XP and availability notices, because it
@@ -353,29 +447,43 @@ function Workbench({
           <Callout tone="caution" title="AI is unavailable">
             This BuildGentic server has no usable AI configured.
           </Callout>
-        ) : !affordable ? (
-          <Callout tone="caution" title="You are out of XP for today">
-            Every experiment costs {labCost} XP, and your balance is spent.
-            It refills tomorrow — or finish a lesson to earn{" "}
-            {credits?.earnings.lessonComplete ?? 20} XP back right now.{" "}
-            <Link to="/courses">Pick up where you left off</Link>.
-          </Callout>
         ) : null}
 
-        <PromptWorkspace
-          settings={settings}
-          requestLimits={info.requestLimits}
-          errors={errors}
-          streaming={streaming}
-          canRun={canRun}
-          activePreset={preset}
-          onChange={patch}
-          onPreset={applyPreset}
-          onRun={() => void launch()}
-          onStop={stop}
-        />
+        {onCanvas ? (
+          <CompareBench
+            api={experiment}
+            requestLimits={info.requestLimits}
+            canRun={canCompare}
+            blockedReason={compareBlocked}
+            cost={compareCost}
+          />
+        ) : (
+          <>
+            {models.length > 0 && !affordable ? (
+              <Callout tone="caution" title="You are out of XP for today">
+                Every experiment costs {labCost} XP, and your balance is
+                spent. It refills tomorrow — or finish a lesson to earn{" "}
+                {credits?.earnings.lessonComplete ?? 20} XP back right now.{" "}
+                <Link to="/courses">Pick up where you left off</Link>.
+              </Callout>
+            ) : null}
 
-        <NeuralResponse state={runState} onRetry={() => void launch()} />
+            <PromptWorkspace
+              settings={settings}
+              requestLimits={info.requestLimits}
+              errors={errors}
+              streaming={streaming}
+              canRun={canRun}
+              activePreset={preset}
+              onChange={patch}
+              onPreset={applyPreset}
+              onRun={() => void launch()}
+              onStop={stop}
+            />
+
+            <NeuralResponse state={runState} onRetry={() => void launch()} />
+          </>
+        )}
       </LabShell>
 
       <RunHistoryDrawer

@@ -1,5 +1,6 @@
 import type {
   AiChatRequest,
+  AiFeature,
   AiModel,
   AiRequestLimits,
   AiLimits,
@@ -58,7 +59,21 @@ export function estimateInputTokens(settings: LabSettings): number {
  * preview showing `"system": ""` implies the model was handed
  * something, and it was not.
  */
-export function buildRequest(settings: LabSettings): AiChatRequest {
+export function buildRequest(
+  settings: LabSettings,
+  /*
+   * Which part of the product is spending.
+   *
+   * Defaults to the Playground's own, so every existing caller
+   * keeps the behaviour it had. The Prompt Canvas passes
+   * "compare" instead: it sends two requests for one action, and
+   * a usage row that could not tell those apart from ordinary
+   * Playground traffic would make the Lab look twice as busy as
+   * it is. The server has accepted the value since Phase 2.1 —
+   * see CLIENT_FEATURES in server/src/ai/validation.ts.
+   */
+  feature: AiFeature = "lab"
+): AiChatRequest {
   const system = settings.system.trim();
   const stop = settings.stop.filter((entry) => entry.length > 0);
 
@@ -68,7 +83,7 @@ export function buildRequest(settings: LabSettings): AiChatRequest {
     temperature: settings.temperature,
     maxOutputTokens: settings.maxOutputTokens,
     ...(stop.length ? { stop } : {}),
-    feature: "lab",
+    feature,
   };
 }
 

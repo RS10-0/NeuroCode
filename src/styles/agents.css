@@ -39,7 +39,23 @@
   grid-template-columns: minmax(0, 1fr) 420px;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
 
-  flex: 1;
+  /*
+   * A DEFINITE HEIGHT, not a flexed one.
+   *
+   * `flex: 1` was never going to reach this far: the shell's
+   * main column holds a plain <main> block between itself and
+   * the page, so nothing above passes a height down. Without
+   * one, `minmax(0, 1fr)` has nothing to be a fraction OF and
+   * resolves to whatever the row contains — which is how a long
+   * answer in the test panel grew the window instead of
+   * scrolling inside the log, taking the form, the tabs and the
+   * save bar out of view with it.
+   *
+   * The Builder is a room you work in, not a document you read
+   * down: both columns scroll themselves (.agentwork and
+   * .agenttest__log), and the header and save bar stay put.
+   */
+  height: 100dvh;
   min-width: 0;
   min-height: 0;
   background: var(--canvas);
@@ -1188,6 +1204,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-shrink: 0;
 
   padding: var(--space-4) var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--rule);
@@ -1220,6 +1237,12 @@
 }
 
 .agenttest__foot {
+  /* The log is the only part of this column that gives ground.
+     Left to shrink proportionally, the composer would get
+     squeezed by a long answer — the one control that has to
+     stay the same size no matter what is above it. */
+  flex-shrink: 0;
+
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-top: 1px solid var(--rule);
   background: var(--surface-1);
@@ -1840,6 +1863,13 @@
       "bar";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto;
+
+    /* Stacked, the page is the scroller again — one column of
+       form with a bounded conversation under it, rather than
+       two panes competing for one viewport. The test panel
+       keeps its own height below, so an answer still scrolls
+       inside itself. */
+    height: auto;
   }
 
   .agentwork {

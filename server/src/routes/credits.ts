@@ -65,6 +65,12 @@ creditsRouter.get("/", async (req, res) => {
 
       costs: {
         lab: COSTS.lab,
+        /* The Prompt Canvas sends two of these for one action,
+           so its button has to be able to say what pressing it
+           costs. Priced the same as a Lab run today; exposed
+           separately so the button keeps telling the truth if
+           that ever stops being so. */
+        compare: COSTS.compare,
         agentTest: COSTS.agent_test,
         agentPublic: COSTS.agent_public,
       },

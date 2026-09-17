@@ -170,6 +170,24 @@ export default function TestPanel({
   const slow = useSlowRequest(streaming);
 
   /*
+   * Whether the learner is parked at the bottom of the log.
+   *
+   * Recorded as they scroll rather than measured when a turn
+   * arrives, and that ordering is the whole point: by the time
+   * the effect below runs, React has already put the new answer
+   * in the DOM, so measuring then asks "is the bottom of a log
+   * that just grew by two thousand pixels within reach" — which
+   * is false for exactly the long answers that most need
+   * scrolling to. Reading it off the last scroll asks the
+   * question that was actually meant: was the learner following
+   * along when this arrived.
+   *
+   * Starts true so the first answer of a conversation scrolls
+   * into view without anybody having touched the log.
+   */
+  const pinned = useRef(true);
+
+  /*
    * Anchored to the bottom while text streams, but only when the
    * learner is already there. Yanking the view back down while
    * somebody is reading three answers up is the single most
@@ -178,16 +196,11 @@ export default function TestPanel({
   useEffect(() => {
     const log = logRef.current;
 
-    if (!log) {
+    if (!log || !pinned.current) {
       return;
     }
 
-    const nearBottom =
-      log.scrollHeight - log.scrollTop - log.clientHeight < 120;
-
-    if (nearBottom) {
-      log.scrollTop = log.scrollHeight;
-    }
+    log.scrollTop = log.scrollHeight;
   }, [turns]);
 
   /*
@@ -246,7 +259,22 @@ export default function TestPanel({
         ) : null}
       </div>
 
-      <div className="agenttest__log" ref={logRef}>
+      <div
+        className="agenttest__log"
+        ref={logRef}
+        onScroll={(event) => {
+          const log = event.currentTarget;
+
+          /* A hundred and twenty pixels of slack, so a learner
+             who has nudged the log a line or two is still
+             treated as following along. Scrolling back down to
+             the bottom re-pins it — including the programmatic
+             scroll above, which is what keeps a stream
+             anchored token after token. */
+          pinned.current =
+            log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+        }}
+      >
         {turns.length === 0 ? (
           <p className="agenttest__empty">
             {emailDesk ? (
