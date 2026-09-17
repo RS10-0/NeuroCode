@@ -3,6 +3,7 @@ import { AiRuntimeError, normalizeError } from "../../ai/errors";
 import { cleanText, safeUrl } from "../sanitize";
 import type {
   SearchProvider,
+  SearchRecency,
   SearchRequest,
   SearchResponse,
   SearchResult,
@@ -63,6 +64,17 @@ function toResult(entry: BraveResult): SearchResult | null {
   };
 }
 
+/*
+ * Brave's spelling of the window. "pd" is past day, "pw" past
+ * week, and so on.
+ */
+const FRESHNESS: Record<SearchRecency, string> = {
+  day: "pd",
+  week: "pw",
+  month: "pm",
+  year: "py",
+};
+
 export const braveProvider: SearchProvider = {
   id: "brave",
   displayName: "Brave Search",
@@ -89,6 +101,14 @@ export const braveProvider: SearchProvider = {
     /* Plain web results. Brave will otherwise mix in discussion
        and FAQ blocks whose shapes this adapter does not read. */
     url.searchParams.set("result_filter", "web");
+
+    /* Brave's own name for the window the plan asked for. Set
+       only when there is one — the parameter has no neutral
+       value, and sending its widest is not the same as not
+       filtering. */
+    if (request.recency) {
+      url.searchParams.set("freshness", FRESHNESS[request.recency]);
+    }
 
     let response: Response;
 

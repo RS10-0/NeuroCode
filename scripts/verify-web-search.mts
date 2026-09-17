@@ -2197,6 +2197,179 @@ function checkSource() {
    MAIN
    --------------------------------------------------------- */
 
+
+/* ---------------------------------------------------------
+   0. WHAT THE ADAPTERS ACTUALLY ASK FOR
+
+   Offline, before anything else, because it needs no server, no
+   key and no network — and because the bug it guards was
+   invisible to every other section in this file.
+
+   A scheduled "Morning News digest" refused to answer every
+   morning for weeks. The prompt was right, the plan was right,
+   the date mapping in TavilyProvider was right. The REQUEST was
+   missing one field: Tavily sends `published_date` only when
+   asked, and nothing asked. So every result arrived dateless,
+   and an agent told to cite publication dates could only say it
+   had none.
+
+   Nothing downstream could catch that. The sections below drive
+   a live search and assert that an answer comes back carrying
+   sources — which it did, the whole time. The defect was a
+   missing field on an outbound request body, so this is where
+   it has to be caught.
+   --------------------------------------------------------- */
+
+async function checkAdapterRequests() {
+  section("0. WHAT THE ADAPTERS ASK FOR (offline)");
+
+  const realFetch = globalThis.fetch;
+
+  /* Keys so the adapters consider themselves configured. Never
+     used for anything: fetch never leaves this process. */
+  process.env.NEUROLINK_TAVILY_API_KEY ||= "offline-probe";
+  process.env.NEUROLINK_BRAVE_SEARCH_KEY ||= "offline-probe";
+
+  const sent: Array<{ url: string; body: string }> = [];
+
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      sent.push({ url, body: String(init?.body ?? "") });
+
+      if (url.includes("tavily")) {
+        return new Response(
+          JSON.stringify({
+            results: [
+              {
+                title: "A dated story",
+                url: "https://example.com/story",
+                content: "Something happened.",
+                published_date: "2026-09-15T08:00:00Z",
+              },
+              {
+                title: "An undated page",
+                url: "https://example.com/evergreen",
+                content: "Always been here.",
+                published_date: null,
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      /* DuckDuckGo's HTML, with the date in the unclassed span
+         inside result__extras__url where it really sits, and a
+         decoy date in the snippet where one really appears. */
+      return new Response(
+        '<div class="result"><h2 class="result__title">' +
+          '<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fstory">A dated story</a>' +
+          '</h2><div class="result__extras"><div class="result__extras__url">' +
+          '<span class="result__url__domain">example.com</span>' +
+          '<span>&nbsp; &nbsp; 2026-09-15T00:00:00.0000000</span>' +
+          '</div></div>' +
+          '<a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fstory">Body text mentioning 2019-01-01.</a></div>',
+        { status: 200, headers: { "content-type": "text/html" } }
+      );
+    }) as typeof fetch;
+
+    const { tavilyProvider } = await import(
+      "../server/src/search/providers/TavilyProvider.ts"
+    );
+    const { duckDuckGoProvider } = await import(
+      "../server/src/search/providers/DuckDuckGoProvider.ts"
+    );
+
+    const signal = new AbortController().signal;
+
+    /* ---- Tavily, which is what production runs ---- */
+
+    const news = await tavilyProvider.search(
+      { query: "AI news", maxResults: 5, recency: "week" },
+      signal
+    );
+
+    const newsBody = JSON.parse(sent.at(-1)?.body ?? "{}");
+
+    check(
+      "Tavily is explicitly asked for a publication date",
+      newsBody.include_published_date === true,
+      "without this Tavily sends none, and a digest has nothing to cite"
+    );
+
+    check(
+      "a recency-bounded question asks Tavily for the NEWS topic",
+      newsBody.topic === "news",
+      `topic=${newsBody.topic} — general returns undated aggregator pages`
+    );
+
+    check(
+      "and carries the window itself",
+      newsBody.time_range === "week",
+      `time_range=${newsBody.time_range}`
+    );
+
+    check(
+      "a dated Tavily result reaches the agent with its date",
+      news.results[0]?.publishedAt === "2026-09-15T08:00:00Z",
+      String(news.results[0]?.publishedAt)
+    );
+
+    check(
+      "a null published_date does not become an invented one",
+      news.results[1]?.publishedAt === undefined,
+      String(news.results[1]?.publishedAt)
+    );
+
+    await tavilyProvider.search(
+      { query: "how does photosynthesis work", maxResults: 5 },
+      signal
+    );
+
+    const generalBody = JSON.parse(sent.at(-1)?.body ?? "{}");
+
+    check(
+      "a question with no window is NOT forced into the news topic",
+      generalBody.topic === undefined,
+      "news on a timeless question buries the best page on the subject"
+    );
+
+    check(
+      "but the date is still requested, because it costs nothing",
+      generalBody.include_published_date === true
+    );
+
+    /* ---- DuckDuckGo, the keyless fallback ---- */
+
+    const ddg = await duckDuckGoProvider.search(
+      { query: "AI news", maxResults: 5, recency: "week" },
+      signal
+    );
+
+    check(
+      "DuckDuckGo carries the window as df= in its form body",
+      (sent.at(-1)?.body ?? "").includes("df=w"),
+      sent.at(-1)?.body ?? ""
+    );
+
+    check(
+      "DuckDuckGo's own date span is read rather than discarded",
+      ddg.results[0]?.publishedAt === "2026-09-15",
+      String(ddg.results[0]?.publishedAt)
+    );
+
+    check(
+      "a date inside somebody else's snippet is NOT lifted as a publication date",
+      ddg.results[0]?.publishedAt !== "2019-01-01",
+      "a date taken from an extract is a fabrication that looks like a fact"
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 async function main() {
   if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
     console.error(
@@ -2227,6 +2400,8 @@ async function main() {
   }
 
   console.log(`Platform model: ${platformModel}\n`);
+
+  await checkAdapterRequests();
 
   try {
     if (!(await checkSchema(owner))) {

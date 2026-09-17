@@ -3,6 +3,7 @@ import { AiRuntimeError, normalizeError } from "../../ai/errors";
 import { cleanText, safeUrl } from "../sanitize";
 import type {
   SearchProvider,
+  SearchRecency,
   SearchRequest,
   SearchResponse,
   SearchResult,
@@ -113,10 +114,89 @@ function unwrap(href: string): string | null {
  * complete result is dropped rather than throwing: a page that
  * has half changed should return fewer results, not fail.
  */
+/*
+ * The date DuckDuckGo already puts on a result.
+ *
+ * It sits in an unclassed span inside `result__extras__url`,
+ * directly after the display URL, and it is an ISO timestamp:
+ *
+ *   <span>&nbsp; &nbsp; 2026-09-10T00:00:00.0000000</span>
+ *
+ * That span was being thrown away, and it is worth being blunt
+ * about what that cost, because it does not look like much. An
+ * agent asked for stories "from the past seven days, with the
+ * publication date" got results with no dates on them at all —
+ * so the only honest answer available to it was to refuse, and
+ * the only other answer available to it was to invent nine
+ * dates. The prompt in websearch/context.ts is what made it
+ * choose the first. This line is what stops the question being
+ * asked.
+ *
+ * Matched on the span rather than scanned for loosely, because
+ * a bare date pattern would also match one that happens to be
+ * in a snippet, and a publication date taken from the body of
+ * somebody else's article is a fabrication with extra steps.
+ *
+ * Only the calendar day is kept. The time is always midnight
+ * and the seven trailing zeroes are noise a model does not need
+ * in its context.
+ */
+const PUBLISHED =
+  /<span[^>]*>(?:&nbsp;|\s)*(\d{4}-\d{2}-\d{2})(?:T[\d:.]*)?\s*<\/span>/i;
+
+/*
+ * The row the date is allowed to come from.
+ *
+ * Anchoring on this before looking for a date is what makes the
+ * result honest rather than merely plausible. Without it the
+ * scan would accept the first date-shaped span anywhere after
+ * the title — and the thing immediately after the title, on a
+ * news query, is a snippet full of dates belonging to somebody
+ * else's article. A publication date lifted out of an extract
+ * is a fabrication that looks exactly like a fact.
+ */
+const EXTRAS = /class="[^"]*\bresult__extras__url\b[^"]*"/i;
+
+/*
+ * How far to look: the markup between a result's title and
+ * whatever ends that result.
+ *
+ * In practice the caller's `to` does the bounding, because it
+ * is the next result's anchor. This is the backstop for the
+ * LAST result on the page, which has nothing after it — without
+ * a cap that one would scan the whole footer.
+ */
+const EXTRAS_WINDOW = 4000;
+
+function publishedIn(
+  html: string,
+  from: number,
+  to: number
+): string | undefined {
+  const region = html.slice(from, Math.min(to, from + EXTRAS_WINDOW));
+
+  const extras = EXTRAS.exec(region);
+
+  if (!extras) {
+    return undefined;
+  }
+
+  const found = PUBLISHED.exec(region.slice(extras.index));
+
+  return found ? found[1] : undefined;
+}
+
 function parse(html: string, limit: number): SearchResult[] {
   const results: SearchResult[] = [];
 
-  let current: { title: string; url: string } | null = null;
+  /*
+   * `at` is where this result's markup starts, so the date can
+   * be read from the region between the title and whatever ends
+   * the result. The anchor loop cannot see the span itself —
+   * it is not an anchor — so the position is what makes it
+   * reachable without a second pass over the page.
+   */
+  let current: { title: string; url: string; at: number } | null = null;
 
   ANCHOR.lastIndex = 0;
 
@@ -133,7 +213,15 @@ function parse(html: string, limit: number): SearchResult[] {
        * is unusual but not a reason to discard a real link.
        */
       if (current) {
-        results.push({ ...current, snippet: "" });
+        const publishedAt = publishedIn(html, current.at, match.index);
+        const { at, ...pending } = current;
+        void at;
+
+        results.push({
+          ...pending,
+          snippet: "",
+          ...(publishedAt ? { publishedAt } : {}),
+        });
 
         if (results.length >= limit) {
           break;
@@ -144,15 +232,23 @@ function parse(html: string, limit: number): SearchResult[] {
       const url = href ? unwrap(href) : null;
       const title = cleanText(inner, 200);
 
-      current = url && title ? { title, url } : null;
+      current =
+        url && title
+          ? { title, url, at: match.index + match[0].length }
+          : null;
 
       continue;
     }
 
     if (current && hasClass(tag, "result__snippet")) {
+      const publishedAt = publishedIn(html, current.at, match.index);
+      const { at, ...pending } = current;
+      void at;
+
       results.push({
-        ...current,
+        ...pending,
         snippet: cleanText(inner, webSearch.snippetChars),
+        ...(publishedAt ? { publishedAt } : {}),
       });
 
       current = null;
@@ -160,7 +256,15 @@ function parse(html: string, limit: number): SearchResult[] {
   }
 
   if (current && results.length < limit) {
-    results.push({ ...current, snippet: "" });
+    const publishedAt = publishedIn(html, current.at, html.length);
+    const { at, ...pending } = current;
+    void at;
+
+    results.push({
+      ...pending,
+      snippet: "",
+      ...(publishedAt ? { publishedAt } : {}),
+    });
   }
 
   return results;
@@ -185,6 +289,34 @@ function isChallenge(status: number, html: string): boolean {
     html.includes("challenge-form") ||
     html.includes("cc=botnet")
   );
+}
+
+/*
+ * DuckDuckGo's own time filter, which is the `df` the "Past
+ * Week" control on its results page sets.
+ *
+ * Worth having rather than filtering on the dates above,
+ * because the two are not the same operation. Filtering here
+ * asks the index for ten recent pages; filtering afterwards
+ * takes ten pages and throws most of them away, and a question
+ * about this week then gets answered from the two that
+ * survived.
+ */
+const DF: Record<SearchRecency, string> = {
+  day: "d",
+  week: "w",
+  month: "m",
+  year: "y",
+};
+
+function form(request: SearchRequest): URLSearchParams {
+  const params = new URLSearchParams({ q: request.query });
+
+  if (request.recency) {
+    params.set("df", DF[request.recency]);
+  }
+
+  return params;
 }
 
 export const duckDuckGoProvider: SearchProvider = {
@@ -217,7 +349,7 @@ export const duckDuckGoProvider: SearchProvider = {
           Accept: "text/html",
           "Accept-Language": "en-US,en;q=0.9",
         },
-        body: new URLSearchParams({ q: request.query }).toString(),
+        body: form(request).toString(),
         signal,
       });
     } catch (error) {

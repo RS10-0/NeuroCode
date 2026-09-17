@@ -36,11 +36,36 @@ export type SearchProviderId = "duckduckgo" | "brave" | "tavily" | "mock";
  * sanitizeQuery in WebSearchRuntime. An adapter may use it
  * without re-checking.
  */
+/*
+ * How far back a result may be and still be worth having.
+ *
+ * Provider-neutral on purpose, in the same way SearchResult is:
+ * every search API has this knob and every one of them spells
+ * it differently — DuckDuckGo puts `df=w` on the form, Brave
+ * sends `freshness=pw`, Tavily takes `time_range=week`. The
+ * adapter translates; nothing above this layer knows which
+ * vendor is behind it.
+ *
+ * Absent means no constraint, which is the right default: most
+ * questions are not about this week, and a filter applied to
+ * one of them removes the best page on the subject for the
+ * crime of having been written last year.
+ */
+export type SearchRecency = "day" | "week" | "month" | "year";
+
 export interface SearchRequest {
   query: string;
   /* How many results to ask for. An adapter may return fewer
      and must never return more. */
   maxResults: number;
+  /*
+   * Set only when the question is explicitly about a window of
+   * time — "this week's releases", "news from the past seven
+   * days". An adapter that cannot express it ignores it rather
+   * than failing: a filter is an optimisation of the result
+   * set, never a precondition for searching at all.
+   */
+  recency?: SearchRecency;
 }
 
 /*

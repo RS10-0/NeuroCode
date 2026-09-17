@@ -1,5 +1,6 @@
 import { webSearch } from "../../ai/config";
 import type { ChatMessage } from "../../ai/types";
+import type { SearchRecency } from "../../search/types";
 
 /*
  * Deciding whether to look something up, and what to look up.
@@ -31,6 +32,23 @@ export interface SearchPlan {
   /* Empty when `search` is false. Never longer than
      webSearch.maxQueries — the runtime caps it again anyway. */
   queries: string[];
+  /*
+   * How far back results may be drawn from, when the question
+   * is about a window of time.
+   *
+   * Decided here rather than inferred in the adapter, because
+   * only this call has read the question. "AI news from the
+   * past seven days" and "how does photosynthesis work" reach
+   * the same provider through the same code path, and the
+   * difference between them is not visible in the query string
+   * a person would type for either.
+   *
+   * Absent for the overwhelming majority of questions, which is
+   * the safe default: a window applied to a question that did
+   * not ask for one removes the best page on the subject for
+   * the crime of not being recent.
+   */
+  recency?: SearchRecency;
   /* The model's own one-line justification. Owner-facing, shown
      nowhere yet, and logged nowhere: it exists so the shape can
      carry it when the Builder has somewhere to put it. */
@@ -64,8 +82,12 @@ const PLAN_SYSTEM = [
     webSearch.maxQueries === 1 ? "query" : "queries"
   }, and use more than one only when the question genuinely has separate parts.`,
   "",
+  "",
+  "Set \"recency\" only when the question is bounded by time — \"this week\", \"in the past seven days\", \"today\", or \"latest\" in the sense of newly published rather than merely correct now. Use the shortest window that still answers it: day, week, month or year. Leave the field out entirely otherwise. A window on a question that did not ask for one throws away the best page on the subject for not being recent, which is a worse answer, not a fresher one.",
+  "",
   "Reply with a single JSON object and nothing else:",
-  '{"search": true, "queries": ["..."], "reason": "..."}',
+  '{"search": true, "queries": ["..."], "recency": "week", "reason": "..."}',
+  'or {"search": true, "queries": ["..."], "reason": "..."}',
   'or {"search": false, "queries": [], "reason": "..."}',
   "The reason is one short clause. No markdown, no code fence, no commentary.",
 ].join("\n");
@@ -242,6 +264,8 @@ export function parsePlan(text: string): SearchPlan | null {
     return { search: false, queries: [], ...(reason ? { reason } : {}) };
   }
 
+  const recency = readRecency(body.recency);
+
   const queries = Array.isArray(body.queries)
     ? body.queries
         .filter((entry): entry is string => typeof entry === "string")
@@ -260,5 +284,29 @@ export function parsePlan(text: string): SearchPlan | null {
     return { search: false, queries: [], ...(reason ? { reason } : {}) };
   }
 
-  return { search: true, queries, ...(reason ? { reason } : {}) };
+  return {
+    search: true,
+    queries,
+    ...(recency ? { recency } : {}),
+    ...(reason ? { reason } : {}),
+  };
+}
+
+/*
+ * The window, if the model named one this layer understands.
+ *
+ * Anything else is dropped rather than corrected — a model that
+ * answers "recency": "past fortnight" has not given a window
+ * any adapter can express, and guessing which of the four it
+ * meant would put a filter on the search that nobody chose.
+ * Dropping it searches without a window, which is what would
+ * have happened had the field never been sent.
+ */
+function readRecency(value: unknown): SearchRecency | undefined {
+  return value === "day" ||
+    value === "week" ||
+    value === "month" ||
+    value === "year"
+    ? value
+    : undefined;
 }

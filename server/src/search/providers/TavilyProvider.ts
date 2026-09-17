@@ -102,6 +102,58 @@ export const tavilyProvider: SearchProvider = {
              crawls further, which is not what a one-turn agent
              lookup needs. */
           search_depth: "basic",
+          /* Tavily takes the window verbatim — day, week, month
+             or year — which is why SearchRecency is spelled the
+             way it is. Omitted entirely when the plan named no
+             window, because `time_range: null` is not a thing
+             the API documents. */
+          ...(request.recency ? { time_range: request.recency } : {}),
+          /*
+           * ASK FOR THE DATE. Without this line Tavily does not
+           * send one, and this adapter's `published_date`
+           * mapping below has nothing to map.
+           *
+           * That is not a small omission and it is worth
+           * recording what it cost. A scheduled "Morning News
+           * digest" asked for three AI stories from the past
+           * seven days, with dates. Every result came back
+           * dateless, so the agent's only honest move was to
+           * refuse — and it did, every morning, in an email its
+           * owner had to read to discover the schedule was not
+           * working. The prompt was right, the mapping was
+           * right, the refusal was right. The request was
+           * missing one field.
+           *
+           * Sent unconditionally rather than only with a
+           * recency window. It is free, the API returns null
+           * when a page has no detectable date, and a date is
+           * worth having on any result a learner might be shown
+           * — "is this still true?" is not a question only news
+           * questions have.
+           */
+          include_published_date: true,
+          /*
+           * The topic, and the reason it is tied to `recency`.
+           *
+           * `general` is the default and it searches the web the
+           * way a person would; `news` retrieves real-time
+           * updates. For "three AI news stories from this week"
+           * the difference is the whole answer: general search
+           * returns the aggregator LANDING PAGES — a site's
+           * "latest AI news" feed, undated by nature because it
+           * changes hourly — while news returns the individual
+           * articles with their own publication dates.
+           *
+           * `recency` is the right signal for that because of
+           * what the plan prompt already asks. It sets a window
+           * only when the question is about something "newly
+           * published", explicitly distinguished from something
+           * "merely correct now". That is the same distinction
+           * Tavily's two topics draw, so this is one rule
+           * following another rather than a second guess laid
+           * on top of the first.
+           */
+          ...(request.recency ? { topic: "news" } : {}),
           include_answer: false,
           include_raw_content: false,
         }),

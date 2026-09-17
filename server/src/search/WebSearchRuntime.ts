@@ -8,7 +8,12 @@ import type { ResolvedPowerSource } from "../ai/types";
 import { cleanText, safeUrl } from "./sanitize";
 import { activeSearchProvider, searchChain } from "./SearchRegistry";
 import { registerSearchProviders } from "./providers";
-import type { SearchProvider, SearchProviderId, SearchResult } from "./types";
+import type {
+  SearchProvider,
+  SearchProviderId,
+  SearchRecency,
+  SearchResult,
+} from "./types";
 
 /*
  * The entry point for every web search BuildGentic makes.
@@ -65,6 +70,11 @@ export interface WebSearchInput {
   /* What to ask. Sanitised and capped here rather than by the
      caller, because this is the boundary. */
   queries: string[];
+  /* Applies to every query in the turn. The plan decides it
+     once for the question, not once per query — two queries
+     serving one "what happened this week" are both about this
+     week. */
+  recency?: SearchRecency;
   agentId?: string;
   signal?: AbortSignal;
 }
@@ -289,7 +299,11 @@ async function attemptQuery(
 
   try {
     const response = await provider.search(
-      { query, maxResults: Math.max(1, webSearch.maxResultsPerQuery) },
+      {
+        query,
+        maxResults: Math.max(1, webSearch.maxResultsPerQuery),
+        ...(input.recency ? { recency: input.recency } : {}),
+      },
       controller.signal
     );
 

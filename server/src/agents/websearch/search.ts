@@ -222,6 +222,7 @@ export async function runAgentWebSearch(
     outcome = await runWebSearch({
       userId: input.userId,
       queries: decision.queries,
+      ...(decision.recency ? { recency: decision.recency } : {}),
       agentId: input.agentId,
       signal: input.signal,
     });
