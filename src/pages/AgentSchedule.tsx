@@ -44,6 +44,7 @@ import {
   createSchedule,
   deleteSchedule,
   describeExpiry,
+  describeHour,
   describeNextRun,
   disableSchedule,
   enableSchedule,
@@ -218,7 +219,7 @@ function ScheduleForm({
               >
                 {Array.from({ length: 24 }, (_, hour) => (
                   <option key={hour} value={hour}>
-                    {String(hour).padStart(2, "0")}:00
+                    {describeHour(hour)}
                   </option>
                 ))}
               </Select>
@@ -347,7 +348,7 @@ function RunCard({
   const when = new Date(run.startedAt).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 
@@ -671,7 +672,7 @@ function ScheduleCard({
           <dd>
             {CADENCE_LABEL[schedule.cadence]}
             {isClockAnchored(schedule.cadence)
-              ? ` at ${String(schedule.hourLocal).padStart(2, "0")}:00`
+              ? ` at ${describeHour(schedule.hourLocal)}`
               : ""}
             {schedule.cadence === "weekly" && schedule.weekdayLocal !== null
               ? ` on ${WEEKDAYS[schedule.weekdayLocal]}`
@@ -701,7 +702,7 @@ function ScheduleCard({
               ? new Date(schedule.lastRunAt).toLocaleString(undefined, {
                   month: "short",
                   day: "numeric",
-                  hour: "2-digit",
+                  hour: "numeric",
                   minute: "2-digit",
                 })
               : "never"}

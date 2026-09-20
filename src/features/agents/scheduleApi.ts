@@ -406,6 +406,23 @@ export function isClockAnchored(cadence: Cadence): boolean {
   return cadence === "daily" || cadence === "weekly";
 }
 
+/*
+ * The hour of the day as a clock face rather than as the number
+ * we store. `hourLocal` is 0-23 because that is the only form
+ * arithmetic can be done on, but nobody picking a time for their
+ * own agent thinks in 13:00 — they think in 1:00 PM, and a
+ * picker that makes you convert is a picker you get wrong.
+ *
+ * Midnight and noon are the two that catch a naive `% 12`:
+ * both land on 0, and both should read 12.
+ */
+export function describeHour(hourLocal: number): string {
+  const hour = Math.min(23, Math.max(0, Math.trunc(hourLocal)));
+  const face = hour % 12 === 0 ? 12 : hour % 12;
+
+  return `${face}:00 ${hour < 12 ? "AM" : "PM"}`;
+}
+
 export const WEEKDAYS = [
   "Sunday",
   "Monday",
@@ -586,7 +603,7 @@ function failureMeaning(detail: string | null): string {
 }
 
 /*
- * "in 4 hours", "tomorrow at 09:00" — in the reader's own clock.
+ * "in 4 hours", "tomorrow at 9:00 AM" — in the reader's own clock.
  *
  * The server stores an instant; a learner thinks in their own
  * timezone, and a schedule page that showed UTC would be asking
@@ -665,7 +682,7 @@ export function describeExpiry(iso: string | null): string {
 
 function timeOnly(date: Date): string {
   return date.toLocaleTimeString(undefined, {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 }
@@ -673,7 +690,7 @@ function timeOnly(date: Date): string {
 function dayAndTime(date: Date): string {
   return date.toLocaleString(undefined, {
     weekday: "short",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 }
