@@ -56,7 +56,45 @@ export function buildScheduledChat(input: ScheduledChatInput): ScheduledChat {
    * owner has to be told about, so it becomes a failed run
    * rather than a silently shorter prompt.
    */
-  const system = composeAgentSystem(agent, input.knowledge).text;
+  const composed = composeAgentSystem(agent, input.knowledge).text;
+
+  /*
+   * WHAT THIS ANSWER IS DELIVERED IN, which the agent otherwise
+   * has no way to know.
+   *
+   * Interactively its answer lands in a chat window that renders
+   * markdown, so a table is a table. A scheduled answer lands in
+   * a plain-text email — mail.ts sends `text` and deliberately no
+   * `html` part, because the body is model output that may quote
+   * bytes a tool fetched, and an HTML body would hand those bytes
+   * a rendering context. That decision is right and is not up for
+   * negotiation here.
+   *
+   * So the fix is not to render the markdown. It is to stop the
+   * agent writing markdown for a medium that cannot show it. A
+   * digest arrived reading
+   *
+   *   | # | Headline | Publication | Date Published |
+   *   |---|----------|-------------|----------------|
+   *   | 1 | **MIND raises $72 M Series B** | AI Weekly |
+   *
+   * which is a wall of pipes and asterisks on a phone at seven in
+   * the morning — and the reader has no way to know the agent did
+   * anything wrong, because it did not. Nobody had told it.
+   *
+   * Appended rather than folded into composeAgentSystem, because
+   * this is true of a SCHEDULED run specifically. The same agent
+   * answering in the Builder should keep its tables.
+   */
+  const system = [
+    composed,
+    "",
+    "HOW THIS ANSWER IS DELIVERED",
+    "It is sent as a plain-text email and shown on a run card. Markdown is not rendered anywhere it lands: a table arrives as rows of pipes and dashes, `**bold**` arrives as asterisks, and `#` headings arrive as hashes.",
+    "So write for plain text. Put each item in its own short block, one fact per line, with a blank line between blocks. Label the lines rather than aligning them into columns. No tables, no bold or italic markers, no heading syntax, no code fences.",
+  ]
+    .join("\n")
+    .trim();
 
   const codeExecution = agent.capabilities.includes("code_execution");
   const httpActions = agent.capabilities.includes("http_actions");

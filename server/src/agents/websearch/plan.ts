@@ -80,7 +80,25 @@ const PLAN_SYSTEM = [
   "Write queries the way a person types them into a search box: specific, keyword-shaped, no quotes unless a phrase must be exact, and self-contained — resolve pronouns and follow-ups against the earlier turns, so \"and what about theirs?\" becomes a query naming the thing.",
   `Use at most ${Math.max(1, webSearch.maxQueries)} ${
     webSearch.maxQueries === 1 ? "query" : "queries"
-  }, and use more than one only when the question genuinely has separate parts.`,
+  }.`,
+  /*
+   * What counts as deserving a second query, and the second
+   * clause was added because the first one alone read as "no".
+   *
+   * "Use more than one only when the question genuinely has
+   * separate parts" is right about a question with two subjects
+   * and wrong about a question asking for three of one thing —
+   * which a model reads as a single part, and answers with a
+   * single query. A daily news digest asked for three distinct
+   * stories got one search, five results, two usable stories and
+   * an honest apology for the third, every morning.
+   *
+   * One search returns one cluster of pages. Asking for several
+   * distinct items is precisely the case where a second,
+   * differently worded query is worth its credit, because the
+   * cost of missing one is a visibly incomplete answer.
+   */
+  "Use more than one query when the question has separate parts, and also when it asks for SEVERAL DISTINCT ITEMS — three news stories, five sources, a few examples. One phrasing tends to surface one cluster of pages, so a second query worded differently is what finds the rest. A single query is right for a single fact.",
   "",
   "",
   "Set \"recency\" only when the question is bounded by time — \"this week\", \"in the past seven days\", \"today\", or \"latest\" in the sense of newly published rather than merely correct now. Use the shortest window that still answers it: day, week, month or year. Leave the field out entirely otherwise. A window on a question that did not ask for one throws away the best page on the subject for not being recent, which is a worse answer, not a fresher one.",
