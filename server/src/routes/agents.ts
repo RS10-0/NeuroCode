@@ -14,6 +14,8 @@ import {
   getActiveKey,
   getDeployment,
   issueKey,
+  listActiveKeys,
+  listDeployments,
   revokeActiveKey,
   type DeploymentSummary,
 } from "../agents/DeploymentStore";
@@ -47,6 +49,7 @@ import {
   deleteSite,
   getSiteForAgent,
   isSlugAvailable,
+  listSites,
   siteUsage,
   suggestSlug,
   updateSite,
@@ -213,6 +216,107 @@ async function requireEditableAgent(
 
   return agent;
 }
+
+/* ---------------------------------------------------------
+   GET /api/agents/published
+
+   The inventory: everything this learner has put in front of
+   other people, in one answer.
+
+   Declared before the `/:agentId/…` routes below. Nothing here
+   actually collides — every one of those needs a second path
+   segment and this has none — but a future `GET /:agentId`
+   would shadow it silently, and the order is cheaper than the
+   comment explaining why it broke.
+
+   The reason this is a server route rather than three Supabase
+   queries from the browser is the two base URLs. Both are
+   configuration the browser has no way to read: in production
+   a page is served from www.buildgentic.com and the API answers
+   at api.buildgentic.com, so a link assembled from
+   window.location.origin would be right for one of them and
+   quietly wrong for the other — and the wrong one is the one a
+   learner pastes into a message to somebody else.
+
+   Schedules are deliberately absent. They already have a
+   listing of their own at GET /api/schedules, and the screen
+   joins the two by agent id. One more source of the same rows
+   is one more thing to keep in step.
+   --------------------------------------------------------- */
+
+agentsRouter.get("/published", async (req, res) => {
+  const user = await requireUser(req, res);
+
+  if (!user) {
+    return;
+  }
+
+  try {
+    const deployments = await listDeployments(user.id);
+
+    /*
+     * Both follow-up reads are one query each, not one per
+     * deployment. A learner with a dozen live agents should
+     * cost this screen three round trips, not twenty-five.
+     */
+    const keys = await listActiveKeys(
+      user.id,
+      deployments.map((deployment) => deployment.id)
+    );
+
+    const sites = await listSites(user.id);
+
+    /*
+     * Keyed on the deployment rather than the agent, because
+     * that is what agent_sites is keyed on — see migration
+     * 0013. Going through the agent would work today and would
+     * be a lie about the relationship.
+     */
+    const siteByDeployment = new Map(
+      sites.map((site) => [site.deploymentId, site])
+    );
+
+    res.json({
+      siteBase: publicSiteBaseUrl,
+      endpointBase: `${publicApiBaseUrl}/api/v1/agents`,
+
+      items: deployments.map((deployment) => {
+        const site = siteByDeployment.get(deployment.id) ?? null;
+        const key = keys.get(deployment.id) ?? null;
+
+        return {
+          agentId: deployment.agentId,
+          deployment: describe(deployment),
+
+          /*
+           * Null means every call to the endpoint is currently
+           * refused — the learner revoked the key and kept the
+           * URL. That is the paused state, and the screen says
+           * so rather than showing a live-looking endpoint that
+           * answers nothing.
+           */
+          key,
+
+          site: site
+            ? {
+                id: site.id,
+                slug: site.slug,
+                url: siteUrlFor(site.slug),
+                published: site.published,
+                /* Enough of the config to label the row. The
+                   document itself belongs to the editor. */
+                template: site.config.template,
+                siteName: site.config.siteName,
+                updatedAt: site.updatedAt,
+              }
+            : null,
+        };
+      }),
+    });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 
 /* ---------------------------------------------------------
    GET /api/agents/:agentId/knowledge

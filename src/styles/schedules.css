@@ -834,3 +834,128 @@ a.digest__link:focus-visible {
 .digest__link--dead {
   opacity: 0.75;
 }
+
+/* =========================================================
+   THE SCHEDULES TAB
+
+   An index. One row per schedule, and the whole row is the
+   link into the agent's own Schedule screen, where the run
+   history and every control already live.
+
+   The first version of this printed run histories inline and
+   it was the wrong shape — a list of two schedules ran to
+   several screens, so you could not see what you had without
+   scrolling past what each one had done. These rows are a
+   fixed height for exactly that reason: ten schedules should
+   be ten lines.
+========================================================= */
+
+.schedlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-1);
+}
+
+.schedlist > li + li .schedrow,
+.schedlist > .schedrow + .schedrow {
+  border-top: 1px solid var(--rule);
+}
+
+.schedrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+
+  padding: var(--space-4);
+  color: inherit;
+  text-decoration: none;
+
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.schedrow:hover {
+  background: var(--surface-2);
+}
+
+/* The row is a link, so it must show a focus ring — and inset,
+   because an outline on a full-width row inside a rounded list
+   is otherwise clipped by the overflow above. */
+.schedrow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.schedrow--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.schedrow__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.schedrow__label {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.schedrow:hover .schedrow__label {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.schedrow__sub {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.schedrow__state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.schedrow__chevron {
+  flex: none;
+  color: var(--ink-muted);
+}
+
+/* =========================================================
+   NARROWER
+
+   Below 640px the badges stop fitting beside the text and move
+   under it. The chevron goes with them rather than floating
+   beside a two-line block it no longer aligns to.
+========================================================= */
+
+@media (max-width: 640px) {
+  .schedrow {
+    flex-wrap: wrap;
+  }
+
+  .schedrow__state {
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+  }
+
+  .schedrow__chevron {
+    display: none;
+  }
+}

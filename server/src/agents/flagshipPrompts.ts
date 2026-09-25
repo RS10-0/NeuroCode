@@ -69,10 +69,20 @@ interface FlagshipPrompt {
  * of turn, and one `SURCHARGES.actions` however many steps ran
  * (credits/costs.ts). What it saves is the OUTPUT: a packaging
  * export re-emits text that already exists, while a synthesis
- * writes a document from nothing and is bounded only by
- * `documents.maxTotalChars`, which is 40,000. That is the
+ * writes a document from nothing and is bounded only by what one
+ * action can carry — `advertisedChars` in config.ts, around
+ * 7,500 characters, which is several pages. That is the
  * difference between an export and a second essay, and it is
  * charged to a student on a 40 XP daily grant.
+ *
+ * That figure used to read 40,000, quoting
+ * `documents.maxTotalChars`. It was the RENDERER's ceiling
+ * rather than the model's, and no synthesis was ever bounded by
+ * it: a document is written as JSON inside one action, so the
+ * real bound was always that step's output allowance. The
+ * spending argument above is unchanged, and if anything
+ * stronger — the gap between re-emitting text and writing it
+ * fresh is the same gap at any ceiling.
  *
  * So the cheap path is the DEFAULT rather than the only path.
  * A student who genuinely wants something written can still ask

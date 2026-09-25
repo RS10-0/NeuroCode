@@ -78,17 +78,25 @@ export interface UserStats {
   updated_at: string;
 }
 
-export interface Project {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  project_type: string;
-  environment: "ai" | "programming";
-  content: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
+/*
+ * There is no Project type here, and the `projects` table it
+ * described is not read by anything.
+ *
+ * It came from NeuroCode, which was going to have a second
+ * track alongside the AI one — hence the `environment` column,
+ * whose only other value was 'programming'. That product did
+ * not happen, and what a learner actually makes turned out to
+ * be an agent, with a page and an endpoint and a schedule
+ * hanging off it. Those have their own tables, their own RLS
+ * and their own screens.
+ *
+ * The CRUD that used to be at the bottom of this file went
+ * with it: five exported functions, no callers, no tests, and
+ * a shape nothing in the app could produce. The table itself
+ * is left in place — dropping it is a migration, and an empty
+ * unreferenced table costs nothing — but the code is gone, so
+ * nothing can start depending on it by accident.
+ */
 
 
 /* =========================================================
@@ -1819,196 +1827,4 @@ export async function updateUserStats(
   }
 
   return data;
-}
-
-
-/* =========================================================
-   PROJECTS
-========================================================= */
-
-export async function getProjects(): Promise<Project[]> {
-  const userId =
-    await getCurrentUserId();
-
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("projects")
-    .select("*")
-    .eq(
-      "user_id",
-      userId
-    )
-    .order(
-      "updated_at",
-      {
-        ascending:
-          false,
-      }
-    );
-
-  if (error) {
-    throw new Error(
-      `Failed to load projects: ${error.message}`
-    );
-  }
-
-  return data ?? [];
-}
-
-
-export async function getProject(
-  projectId: string
-): Promise<Project | null> {
-  const userId =
-    await getCurrentUserId();
-
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("projects")
-    .select("*")
-    .eq(
-      "id",
-      projectId
-    )
-    .eq(
-      "user_id",
-      userId
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(
-      `Failed to load project: ${error.message}`
-    );
-  }
-
-  return data;
-}
-
-
-/**
- * Create a project.
- *
- * A plain insert, unlike the progress tables above: projects
- * carries no unique constraint, every call is meant to produce
- * a new row, and two projects sharing a title is allowed. There
- * is no conflict here to resolve.
- */
-export async function createProject(
-  title: string,
-  projectType: string,
-  environment:
-    | "ai"
-    | "programming",
-  description = "",
-  content: Record<string, unknown> = {}
-): Promise<Project> {
-  const userId =
-    await getCurrentUserId();
-
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("projects")
-    .insert({
-      user_id:
-        userId,
-
-      title,
-
-      description,
-
-      project_type:
-        projectType,
-
-      environment,
-
-      content,
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    throw new Error(
-      `Failed to create project: ${error.message}`
-    );
-  }
-
-  return data;
-}
-
-
-export async function updateProject(
-  projectId: string,
-  updates: {
-    title?: string;
-    description?: string;
-    content?: Record<string, unknown>;
-  }
-): Promise<Project> {
-  const userId =
-    await getCurrentUserId();
-
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("projects")
-    .update({
-      ...updates,
-
-      updated_at:
-        new Date().toISOString(),
-    })
-    .eq(
-      "id",
-      projectId
-    )
-    .eq(
-      "user_id",
-      userId
-    )
-    .select("*")
-    .single();
-
-  if (error) {
-    throw new Error(
-      `Failed to update project: ${error.message}`
-    );
-  }
-
-  return data;
-}
-
-
-export async function deleteProject(
-  projectId: string
-): Promise<void> {
-  const userId =
-    await getCurrentUserId();
-
-  const {
-    error,
-  } = await supabase
-    .from("projects")
-    .delete()
-    .eq(
-      "id",
-      projectId
-    )
-    .eq(
-      "user_id",
-      userId
-    );
-
-  if (error) {
-    throw new Error(
-      `Failed to delete project: ${error.message}`
-    );
-  }
 }

@@ -51,9 +51,12 @@ const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$/;
  * built it or why.
  */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
-  /* Live routes. */
+  /* Live routes. `projects` is a redirect to `published` now
+     rather than a page of its own, and stays reserved for the
+     same reason it was: the app still answers there. */
   "agents", "build", "courses", "dashboard", "dev", "lab", "learn",
-  "lessons", "login", "onboarding", "profile", "projects", "register",
+  "lessons", "login", "onboarding", "profile", "projects", "published",
+  "register", "schedules",
 
   /* Infrastructure and conventional paths. */
   "api", "app", "assets", "auth", "cdn", "static", "public", "media",

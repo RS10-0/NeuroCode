@@ -1,4 +1,4 @@
-import { documents } from "../../ai/config";
+import { advertisedChars, documents } from "../../ai/config";
 import type {
   ToolContext,
   ToolOutcome,
@@ -18,7 +18,19 @@ import { DocumentTooLarge, RenderRefused } from "./types";
  * model decides whether to reach for this and what to put in
  * it.
  *
- * Three things in it are load-bearing and were not obvious:
+ * Four things in it are load-bearing and were not obvious:
+ *
+ *   THE CHARACTER LIMIT IT QUOTES IS NOT THE RENDERER'S. This
+ *   line used to advertise `documents.maxTotalChars` — 40,000,
+ *   which is what plan.ts will accept and what the writers can
+ *   turn into a file. A model cannot reach it: the whole
+ *   document is JSON inside ONE action, bounded by that step's
+ *   output allowance, and 40,000 characters of text is roughly
+ *   eleven times it. So the figure here comes from
+ *   `advertisedChars`, which derives it from the allowance, and
+ *   the sentence after it says what going past actually does —
+ *   not a truncated document but no document at all. See
+ *   "WHAT A TOOL MAY ADVERTISE" in ai/config.ts.
  *
  *   THE BLOCK SHAPES ARE SHOWN, NOT DESCRIBED. A schema full of
  *   angle brackets is something models paraphrase; literal JSON
@@ -54,8 +66,9 @@ export const makeDocumentTool: ToolSpec = {
       `    {"type":"list","ordered":false,"items":["North beat target","South was flat"]}`,
       `    {"type":"table","columns":["Region","Q1"],"rows":[["North","400"],["South","310"]]}`,
       "  pdf is for reading or printing but draws Latin alphabets only — no Japanese, Chinese, Greek, Cyrillic, Arabic or emoji. docx is the same but editable, and handles every language. xlsx makes each table its own sheet named after the heading above it, so ask for it when the answer is mostly numbers, and send them as tables.",
-      `  Limits: ${documents.maxBlocks} blocks, ${documents.maxTableRows} rows and ${documents.maxTableColumns} columns a table, ${documents.maxTotalChars.toLocaleString()} characters, ${documents.maxPerTurn} document${documents.maxPerTurn === 1 ? "" : "s"} an answer.`,
-      "  You get back its name and size, never the file — you cannot read a document back, so put everything in the blocks first time. The person gets a download link, and a scheduled run attaches it to the email.",
+      `  Limits: ${documents.maxBlocks} blocks, ${documents.maxTableRows} rows and ${documents.maxTableColumns} columns a table, about ${advertisedChars(documents.maxTotalChars).toLocaleString()} characters of text in one document, ${documents.maxPerTurn} document${documents.maxPerTurn === 1 ? "" : "s"} an answer.`,
+      `  That character limit is how much you can WRITE in one go, and going past it does not make a longer document — your action gets cut off mid-write and nothing is made at all. If what they want is bigger, either cut it down, or make it as ${documents.maxPerTurn} documents and say what is in each.`,
+      "  You get back its name and size, never the file — you cannot read a document back, so check the blocks before you send them. The person gets a download link, and a scheduled run attaches it to the email.",
     ].join("\n"),
 
   async run(args, context: ToolContext): Promise<ToolOutcome> {

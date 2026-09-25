@@ -4029,3 +4029,200 @@
     margin-right: var(--space-4);
   }
 }
+
+/* =========================================================
+   PUBLISHED — THE INVENTORY
+
+   One card per deployed agent, and inside it a row per thing
+   the outside world can reach: the page, the endpoint, and
+   each schedule.
+
+   A row, not a card-within-a-card. The three kinds are not
+   peers of the agent above them, they are its addresses, and
+   nesting cards would have said otherwise. What separates them
+   is a rule and an icon gutter, which is enough — they are
+   already the same shape as each other.
+========================================================= */
+
+.pubgrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pubcard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+
+.pubcard__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pubcard__name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+
+  /* Takes the slack so the status badge sits hard right,
+     where it is the same distance from the edge on every
+     card and can be read down the column. */
+  flex: 1;
+}
+
+.pubcard__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pubcard__name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pubrows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pubrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+
+.pubrow:first-child {
+  border-top: 0;
+}
+
+/*
+ * A row describing something that is NOT reachable: a page
+ * taken down, an endpoint with no key, a schedule switched
+ * off. Dimmed rather than hidden, because "there is no page"
+ * is one of the things this screen exists to tell somebody.
+ */
+.pubrow--absent {
+  background: var(--surface-2);
+}
+
+.pubrow--absent .pubrow__label {
+  color: var(--ink-secondary);
+}
+
+.pubrow__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--ink-muted);
+}
+
+.pubrow__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pubrow__label {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  min-width: 0;
+
+  /* An address is long, unbreakable at any space, and the one
+     thing on the row that must not push the buttons off the
+     right edge. */
+  overflow-wrap: anywhere;
+}
+
+.pubrow__label--mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.pubrow__label a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pubrow__label a:hover {
+  color: var(--accent-hover);
+}
+
+/* The address of a page that is down. Struck through rather
+   than removed: it is still theirs, and it is what the link
+   they already sent somebody points at. */
+.pubrow__dead {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+
+.pubrow__sub {
+  font-size: var(--text-2xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.pubrow__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+/* =========================================================
+   NARROWER
+
+   Below 640px the actions stop fitting beside the address and
+   move under it. They keep the icon gutter's indent so the
+   row still reads as one block rather than as two.
+========================================================= */
+
+@media (max-width: 640px) {
+  .pubrow {
+    flex-wrap: wrap;
+  }
+
+  /*
+   * Full-basis on the ACTIONS, not on the body: putting it on
+   * the body would wrap the body itself below the icon and
+   * leave the icon alone on a line of its own.
+   */
+  .pubrow__actions {
+    flex: 0 0 100%;
+
+    /* Lines up under the address rather than under the icon,
+       so the row still reads as one block. */
+    margin-left: calc(15px + var(--space-3));
+  }
+}

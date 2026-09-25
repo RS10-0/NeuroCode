@@ -51,6 +51,17 @@ export default function Agents() {
      query rather than one per card. */
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
 
+  /*
+   * The address of each agent whose page is currently up.
+   *
+   * Null until the query lands, so a card can tell "no page"
+   * apart from "not asked yet" and stay silent in the second
+   * case rather than confidently saying an agent is not live.
+   */
+  const [liveSlugs, setLiveSlugs] = useState<Record<string, string> | null>(
+    null
+  );
+
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Agent | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -87,13 +98,66 @@ export default function Agents() {
       }
     }
 
-    return { rows, tally };
+    /*
+     * Which of these are live, in one more query.
+     *
+     * Read straight from Supabase rather than through
+     * /api/agents/published, because the badge needs the slug
+     * and not the absolute URL — and the URL is the only part
+     * of that endpoint's answer the browser cannot assemble
+     * for itself. agent_sites is owner-read under RLS, so this
+     * is the same kind of call as listAgents above.
+     *
+     * Filtered to published rows: a page that is taken down is
+     * not an address anybody can reach, and the badge here
+     * claims exactly that. The Published screen is where the
+     * fuller story — taken down, no key, no page at all —
+     * belongs.
+     *
+     * Null on failure rather than an empty map, and unlike the
+     * tally above this distinction is load-bearing. An empty
+     * map is the assertion "none of these are live", which for
+     * a learner whose page IS up is a wrong answer stated
+     * confidently on the one screen they would check. Null
+     * makes every card stay quiet instead, which is the honest
+     * thing to say when the query did not come back.
+     *
+     * The shelf itself is unaffected either way — this decides
+     * a badge, so it must never be the reason a learner cannot
+     * see their agents.
+     */
+    let live: Record<string, string> | null = {};
+
+    if (rows.length > 0) {
+      const { data, error } = await supabase
+        .from("agent_sites")
+        .select("agent_id, slug")
+        .eq("published", true)
+        .in(
+          "agent_id",
+          rows.map((row) => row.id)
+        );
+
+      if (error) {
+        live = null;
+      } else {
+        for (const row of (data ?? []) as Array<{
+          agent_id: string;
+          slug: string;
+        }>) {
+          live[row.agent_id] = row.slug;
+        }
+      }
+    }
+
+    return { rows, tally, live };
   }, []);
 
   const reload = useCallback(async () => {
-    const { rows, tally } = await fetchShelf();
+    const { rows, tally, live } = await fetchShelf();
     setAgents(rows);
     setCounts(tally);
+    setLiveSlugs(live);
     setError(null);
   }, [fetchShelf]);
 
@@ -101,10 +165,11 @@ export default function Agents() {
     let active = true;
 
     fetchShelf()
-      .then(({ rows, tally }) => {
+      .then(({ rows, tally, live }) => {
         if (active) {
           setAgents(rows);
           setCounts(tally);
+          setLiveSlugs(live);
           setError(null);
         }
       })
@@ -235,6 +300,7 @@ export default function Agents() {
               agent={agent}
               info={info}
               knowledgeCount={counts ? (counts[agent.id] ?? 0) : null}
+              liveSlug={liveSlugs ? (liveSlugs[agent.id] ?? null) : undefined}
               busy={busyId === agent.id}
               onDuplicate={(entry) => void handleDuplicate(entry)}
               onDelete={setPendingDelete}

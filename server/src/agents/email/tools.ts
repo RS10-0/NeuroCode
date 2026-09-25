@@ -1,4 +1,4 @@
-import { email as config } from "../../ai/config";
+import { advertisedChars, email as config } from "../../ai/config";
 import type { ToolContext, ToolOutcome, ToolSpec } from "../actions/catalog";
 import { cleanAddresses } from "./addresses";
 /*
@@ -467,7 +467,7 @@ const emailDraft: ToolSpec = {
       "  THIS DOES NOT SEND. It cannot: no tool sends. They read it and press Send themselves, or edit it, or bin it.",
       `  args: { "to": ["x@example.com"], "cc": [], "subject": "...", "body": "...", "replyTo": "<optional id being answered>" }`,
       '  Replying: pass the id as "replyTo", and read the message first with email_get. A reply written from a snippet misses the question.',
-      `  Plain text. Up to ${config.maxRecipients} recipients, ${config.maxBodyChars.toLocaleString()} characters, ${config.maxDraftsPerTurn} drafts per answer.`,
+      `  Plain text. Up to ${config.maxRecipients} recipients, ${advertisedChars(config.maxBodyChars, "text").toLocaleString()} characters, ${config.maxDraftsPerTurn} drafts per answer.`,
       '  Afterwards say you have DRAFTED it and it is waiting. Never "I sent", "I replied", "I emailed them" — none of that happened or can.',
     ].join("\n"),
 

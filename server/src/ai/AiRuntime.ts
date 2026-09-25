@@ -31,6 +31,7 @@ import {
 import type { FileScope } from "../files/FileStore";
 import { FILE_ACCEPT } from "../files/sniff";
 import {
+  actions,
   fileAnalysis,
   firstTokenTimeoutMs,
   memory as memoryConfig,
@@ -1393,9 +1394,26 @@ export async function* runChat(
       }
     : body;
 
+  /*
+   * The extra output a pass gets for writing an action, and the
+   * reason it is `actionPlan && ...` rather than a flat number.
+   *
+   * An agent with no tools never writes one, so it is not given
+   * room for one — the same property the loop above is careful
+   * to keep, that an agent without actions pays nothing for
+   * their existence. See `actions.writeTokens` for what sized
+   * it and what it widens.
+   */
+  const writeAllowance = actionPlan ? actions.writeTokens : 0;
+
   /* Throws invalid_request on an oversized conversation. Before
      the quota slot, so a too-large prompt costs nothing. */
-  const request = buildModelRequest(bodyWithActions, model, source.limits);
+  const request = buildModelRequest(
+    bodyWithActions,
+    model,
+    source.limits,
+    writeAllowance
+  );
 
   const estimatedInput = estimateInputTokens(request.messages, request.system);
 
@@ -2040,7 +2058,17 @@ export async function* runChat(
               messages: [...messages, ...attempt],
             },
             model,
-            source.limits
+            source.limits,
+            /*
+             * A closing pass cannot act, so it is built on the
+             * owner's own output setting and nothing more. That
+             * is the pass where an agent writes its answer with
+             * the tools block gone, and giving it an allowance
+             * for a tool call it is forbidden to make would
+             * quietly redefine `max_output_tokens` for every
+             * tool-enabled agent on the platform.
+             */
+            closing ? 0 : writeAllowance
           );
 
           break;

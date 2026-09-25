@@ -1,4 +1,4 @@
-import { fileAnalysis } from "./config";
+import { CHARS_PER_TOKEN, fileAnalysis } from "./config";
 import type { ChatMessage, TokenUsage } from "./types";
 
 /*
@@ -17,9 +17,14 @@ import type { ChatMessage, TokenUsage } from "./types";
  * right direction to err: the hard input limit is counted in
  * characters, not in tokens, so an underestimate here can never
  * let an oversized request through.
+ *
+ * CHARS_PER_TOKEN ITSELF LIVES IN config.ts, one layer down, and
+ * not because it is configurable — it is not. It is there
+ * because config derives a character figure from a token
+ * allowance too (`actionWriteChars`), this module already
+ * imports config, and a constant in both places is a constant
+ * that eventually disagrees with itself.
  */
-
-const CHARS_PER_TOKEN = 4;
 
 export function estimateTokens(text: string): number {
   if (!text) {
@@ -39,6 +44,25 @@ export function estimateTokensFromChars(chars: number): number {
   }
 
   return Math.ceil(chars / CHARS_PER_TOKEN);
+}
+
+/*
+ * The other direction: how much text an output allowance buys.
+ *
+ * Used where a limit has to be STATED to a model rather than
+ * enforced against it — a tool description saying how much it
+ * can write in one go. Rounds DOWN, where everything above
+ * rounds up, and the asymmetry is the point: overestimating an
+ * input is a request refused slightly early, while
+ * overestimating an output is a promise the model cannot keep
+ * and discovers by being cut off mid-write.
+ */
+export function estimateCharsFromTokens(tokens: number): number {
+  if (tokens <= 0) {
+    return 0;
+  }
+
+  return Math.floor(tokens * CHARS_PER_TOKEN);
 }
 
 /*

@@ -15,6 +15,9 @@ interface PanelProps {
   actions?: ReactNode;
   flush?: boolean;
   className?: string;
+  /* An anchor, so a link from elsewhere can land on this panel
+     rather than at the top of the page it lives on. */
+  id?: string;
   children: ReactNode;
 }
 
@@ -23,10 +26,11 @@ export default function Panel({
   actions,
   flush = false,
   className = "",
+  id,
   children,
 }: PanelProps) {
   return (
-    <div className={`panel ${className}`.trim()}>
+    <div className={`panel ${className}`.trim()} id={id}>
       {title || actions ? (
         <div className="panel__header">
           {/* Guarded: a header can exist for its actions alone, and

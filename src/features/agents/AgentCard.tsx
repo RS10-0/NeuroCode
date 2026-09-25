@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Copy, Rocket, Server, Sparkles, Trash2 } from "lucide-react";
+import { Copy, Globe, Rocket, Server, Sparkles, Trash2 } from "lucide-react";
 
 import { Badge, IconButton } from "../../components/ui";
 import type { AiRuntimeInfo } from "../../lib/aiClient";
@@ -31,6 +31,17 @@ interface AgentCardProps {
      is shown — which is honest, and better than a blank. */
   info: AiRuntimeInfo | null;
   knowledgeCount: number | null;
+  /*
+   * The address this agent answers at, if it has a published
+   * page that is up. Null for an agent with no page, or one
+   * whose page is taken down; undefined while the query is
+   * still out.
+   *
+   * The distinction matters: a card that has not heard yet must
+   * not say "not live", because for the one agent on the shelf
+   * that IS live that is a wrong answer shown confidently.
+   */
+  liveSlug?: string | null;
   busy: boolean;
   onDuplicate: (agent: Agent) => void;
   onDelete: (agent: Agent) => void;
@@ -88,6 +99,7 @@ export default function AgentCard({
   agent,
   info,
   knowledgeCount,
+  liveSlug,
   busy,
   onDuplicate,
   onDelete,
@@ -123,6 +135,24 @@ export default function AgentCard({
       </div>
 
       <div className="agentcard__facts">
+        {/*
+          First in the row, ahead of even the Official badge.
+          Everything else here describes how the agent is
+          CONFIGURED; this is the only fact about what it is
+          doing in the world, and it is the one the shelf could
+          not previously answer at all — you had to open each
+          agent and click through two sub-screens to find out
+          which of them were live.
+
+          The slug rather than the word "Live" on its own,
+          because the address is the thing being looked for.
+        */}
+        {liveSlug ? (
+          <Badge tone="correct" icon={<Globe size={11} />} mono>
+            /{liveSlug}
+          </Badge>
+        ) : null}
+
         {agent.isOfficial ? (
           <Badge tone="accent" icon={<Sparkles size={11} />}>
             Official

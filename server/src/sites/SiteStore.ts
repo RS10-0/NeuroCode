@@ -124,6 +124,34 @@ export async function getSiteForAgent(
 }
 
 /*
+ * Every page this learner holds, newest first.
+ *
+ * The across-agents counterpart to getSiteForAgent, and it
+ * exists for one screen: the inventory that answers "what of
+ * mine is live, and at what address". Callers that know which
+ * agent they mean should keep using getSiteForAgent.
+ *
+ * Unpublished pages are included. A page taken down still holds
+ * its address and is still a thing its owner made, and hiding
+ * it here would leave the only evidence of it on an agent's own
+ * sub-screen — which is exactly the problem this read exists
+ * to fix. The `published` flag carries the distinction.
+ */
+export async function listSites(userId: string): Promise<SiteSummary[]> {
+  const { data, error } = await supabase
+    .from("agent_sites")
+    .select(SITE_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    fail("Unable to load your pages.", `select failed: ${error.message}`);
+  }
+
+  return ((data ?? []) as SiteRow[]).map(toSite);
+}
+
+/*
  * Whether an address is available, for the editor's live check.
  *
  * Answers only yes or no. It deliberately does not say who

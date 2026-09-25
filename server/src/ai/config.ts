@@ -95,6 +95,26 @@ export const openRouterTitle =
    request costs one JSON parse rather than a provider bill.
 ========================================================= */
 
+/*
+ * Characters to a token, the approximation every size estimate
+ * on this server runs on.
+ *
+ * Here rather than in tokens.ts — which is where the rest of
+ * the token arithmetic lives and where this used to be —
+ * because two callers now need it and only one of them may
+ * import that module. tokens.ts already imports this file, so a
+ * copy here and a copy there would be a cycle or a duplicate,
+ * and the duplicate is the worse of the two: it disagrees
+ * silently the first time somebody tunes one of them.
+ *
+ * Four is the usual English approximation and errs low on code
+ * and non-Latin scripts. tokens.ts explains why erring low is
+ * the safe direction for an INPUT estimate; `actionWriteChars`
+ * below explains what it means for an OUTPUT one, where the
+ * same bias points the other way.
+ */
+export const CHARS_PER_TOKEN = 4;
+
 export const requestLimits = {
   maxMessages: readInt("NEUROLINK_AI_MAX_MESSAGES", 40),
   maxMessageChars: readInt("NEUROLINK_AI_MAX_MESSAGE_CHARS", 12_000),
@@ -1361,6 +1381,65 @@ export const actions = {
   resultChars: readInt("NEUROLINK_ACTION_RESULT_CHARS", 4_000),
 
   /*
+   * EXTRA output tokens given to a step that may write an
+   * action, on top of whatever the agent's own answer budget is.
+   *
+   * This exists because two different limits were conflated for
+   * a while, and the gap between them made one capability's
+   * headline feature impossible to use.
+   *
+   * `documents.maxTotalChars` is 40,000. That is what the
+   * RENDERER can turn into a file, it is checked in plan.ts
+   * before a byte is allocated, and it is correct. It was never
+   * what the model can WRITE. A document is emitted as JSON
+   * inside a single action, so what bounds it is the output
+   * allowance of that one step — which was the agent row's
+   * `max_output_tokens`, 1,024, about 4,000 characters. The
+   * tool description advertised the first number while the
+   * runtime enforced the second, so anything substantial was
+   * cut off mid-write, retried once by `TRUNCATION_RETRIES` in
+   * actions/protocol.ts, and abandoned.
+   *
+   * WHY IT IS ADDED RATHER THAN SUBSTITUTED. An action is
+   * written IN ADDITION to whatever the agent would otherwise
+   * say — the owner set `max_output_tokens` to size an ANSWER,
+   * and an agent that reaches for a tool has not stopped
+   * needing that. Replacing the owner's number would override a
+   * setting they chose; adding to it leaves their intent intact
+   * and pays only for the new thing.
+   *
+   * WHY 3,072. Measured, on the case the Research Assistant is
+   * actually sold on — a ten-source annotated bibliography, the
+   * whole `{tool,args}` payload through JSON.stringify:
+   *
+   *   3-story digest, one table         1,261 chars    316 tok
+   *   3-story digest, block per story   1,429 chars    358 tok
+   *   6-source bibliography             4,422 chars  1,106 tok
+   *   10-source bibliography            7,161 chars  1,791 tok
+   *   16-source bibliography           11,283 chars  2,821 tok
+   *
+   * 2,048 looks sufficient and is not: it clears the ten-source
+   * case by 14%, which is one fuller annotation away from the
+   * same truncation this number exists to end. 3,072 clears it
+   * by 42% and still fits sixteen sources. Past that, a
+   * document is better as two documents — `documents.maxPerTurn`
+   * is 2 — than as a larger single write.
+   *
+   * WHAT IT COSTS, honestly. Only a step that may still act
+   * gets it: an agent with no capabilities is untouched, and
+   * the closing pass — the one that answers after the tools are
+   * done — is built without it. What it does widen is an
+   * ordinary answer from a tool-enabled agent, which may now
+   * run to the fuller allowance instead of being cut at the
+   * owner's. Tokens are counted as REPORTED by the provider
+   * rather than as estimated (see 0006's `tokens_today`), so
+   * this spends nothing a model does not actually write; the
+   * estimate only makes the gate refuse an acting turn slightly
+   * earlier against a daily ceiling.
+   */
+  writeTokens: readInt("NEUROLINK_ACTION_WRITE_TOKENS", 3_072),
+
+  /*
    * The ceiling on ALL tool results in one turn, together.
    *
    * Separate from the per-result cap because the failure modes
@@ -1448,6 +1527,165 @@ export const actions = {
 } as const;
 
 /* =========================================================
+   WHAT A TOOL MAY ADVERTISE
+
+   Turning the allowance above into the figure a tool
+   description quotes, which is a different job from every other
+   ceiling in this file.
+
+   Everything else here bounds what the server will ACCEPT, and
+   is enforced by code that refuses. This bounds what the model
+   can WRITE, and is enforced by nothing — it goes into a
+   prompt. Which is exactly why it has to be right: a refusal a
+   model trips over teaches it something, and a promise it
+   cannot keep teaches it nothing at all. It just gets cut off
+   mid-write, retried once by protocol.ts, and abandoned.
+
+   THE FAILURE THIS REPLACES. make_document advertised
+   `documents.maxTotalChars` — 40,000, which is genuinely what
+   plan.ts accepts and what the renderers can produce. But a
+   document is emitted as JSON inside ONE action, so 40,000
+   characters of text is about 47,000 characters of payload from
+   a step that could spend 4,000. Eleven times over, promised in
+   the system prompt of every agent with the capability on. A
+   news digest fits and worked; a ten-source annotated
+   bibliography — the thing the Research Assistant is sold on —
+   could not be produced at all.
+========================================================= */
+
+/*
+ * What JSON costs on top of the text itself.
+ *
+ * Measured over realistic payloads: the whole `{tool,args}`
+ * object through JSON.stringify, against the character count
+ * `weigh()` reports for the same blocks.
+ *
+ *   3-story digest, one table          1.19
+ *   3-story digest, block per story    1.37
+ *   6-source bibliography              1.19
+ *   10-source bibliography             1.17
+ *   10-source bibliography, as a table 1.05
+ *   16-source bibliography             1.17
+ *
+ * NOT 1.17, WHICH IS WHERE REAL DOCUMENTS LAND, and not 1.37
+ * either. The cost is per BLOCK — each one pays for its own
+ * braces, its `"type"`, and quoting on every field — so the
+ * ratio climbs as blocks get shorter, and a document of many
+ * one-line paragraphs reaches 1.53. That is the shape a model
+ * produces when it is being careful, which is to say the shape
+ * it produces when it is doing what it was asked.
+ *
+ * An average would make this figure true of the documents that
+ * were never in trouble and false of the fiddly ones. So it is
+ * sized to the worst shape the block vocabulary can express,
+ * and the verification suite builds exactly that shape at
+ * exactly the advertised length to keep it honest.
+ */
+const OVERHEAD_BLOCKS = 1.55;
+
+/*
+ * And the other shape, which is most tools.
+ *
+ * A store record and an email body are ONE string in one field.
+ * There are no per-item braces to pay for, so the overhead is
+ * the quoting and whatever escaping the text needs — measured
+ * at 1.02 on prose, taken at 1.05 for text carrying quotes and
+ * newlines.
+ *
+ * Worth the second constant rather than applying the block
+ * figure to everything: charging an email body 1.55 would have
+ * advertised 7,500 characters for a field that comfortably
+ * carries 8,000, which is the same class of wrongness this
+ * whole section exists to remove — just pointing the other way,
+ * and costing capacity instead of promising it.
+ */
+const OVERHEAD_TEXT = 1.05;
+
+/*
+ * Which of the two a tool's content is shaped like. `blocks`
+ * for anything assembled out of many JSON nodes, `text` for a
+ * single string field.
+ */
+export type ActionPayloadShape = "blocks" | "text";
+
+/*
+ * Room left for everything in the step that is not content.
+ *
+ * The two sentinels are 28 characters each. The rest is the
+ * sentence the model writes before them: the action block tells
+ * it the line must be the whole of its reply, and the scanner
+ * in protocol.ts releases anything written first precisely
+ * because models say "Let me put that together" anyway. A
+ * budget assuming they never do is a budget that is wrong
+ * whenever they do.
+ */
+const ACTION_ENVELOPE_CHARS = 400;
+
+/*
+ * Rounded down to this, because the figure goes into a prompt.
+ *
+ * "about 8,500 characters" reads as a limit somebody chose.
+ * "8,491 characters" reads as an arithmetic result, invites a
+ * model to try 8,490, and moves whenever an unrelated constant
+ * does.
+ */
+const ACTION_ADVERTISED_STEP = 500;
+
+/*
+ * The most content one action can carry, in the characters a
+ * tool description talks about.
+ *
+ * Rounds DOWN throughout, where the input estimates in tokens.ts
+ * round up, and the asymmetry is deliberate: an input
+ * overestimate refuses a request slightly early, while an output
+ * overestimate is the promise this whole block exists to stop
+ * making.
+ */
+export function actionWriteChars(
+  shape: ActionPayloadShape = "blocks"
+): number {
+  const available =
+    actions.writeTokens * CHARS_PER_TOKEN - ACTION_ENVELOPE_CHARS;
+
+  if (available <= 0) {
+    return ACTION_ADVERTISED_STEP;
+  }
+
+  const content = Math.floor(
+    available / (shape === "text" ? OVERHEAD_TEXT : OVERHEAD_BLOCKS)
+  );
+
+  return Math.max(
+    ACTION_ADVERTISED_STEP,
+    Math.floor(content / ACTION_ADVERTISED_STEP) * ACTION_ADVERTISED_STEP
+  );
+}
+
+/*
+ * What a tool should tell the model, given its own ceiling.
+ *
+ * The smaller of the two, always. A tool whose own limit is
+ * already inside the step budget — a 2,000-character store
+ * record, an 8,000-character email body — keeps quoting its
+ * own, because that is the number that will actually refuse it.
+ * Only a ceiling larger than a step can reach gets replaced.
+ *
+ * ADVISORY, AND DELIBERATELY SO. Nothing refuses a document for
+ * exceeding this. A model that packs its blocks more densely
+ * than the overhead above assumes, and gets 12,000 characters
+ * through, renders a 12,000-character document — plan.ts
+ * decides that, and its ceiling is unchanged. Advertising below
+ * the enforced limit is the right way round: a promise the model
+ * can keep, backed by a validator that will still take more.
+ */
+export function advertisedChars(
+  ownCeiling: number,
+  shape: ActionPayloadShape = "blocks"
+): number {
+  return Math.min(ownCeiling, actionWriteChars(shape));
+}
+
+/* =========================================================
    ACTION QUOTAS
 
    Counted, and counted in their OWN windows, under the quota
@@ -1480,6 +1718,16 @@ const platformActionLimits: QuotaLimits = {
      tool result so far, so this is the one place the extras
      budget above is actually spent. */
   maxInputChars: readInt("NEUROLINK_ACTION_MAX_INPUT_CHARS", 32_000),
+  /*
+   * DOES NOT BOUND WHAT A MODEL WRITES IN AN ACTION STEP, and
+   * the name reads as though it does, which cost somebody real
+   * time. Nothing in QuotaGuard reads this field; the object it
+   * lives in is a QuotaLimits, handed to `admit` to pick the
+   * windows an action step is counted in. A step's actual
+   * output ceiling is settled in buildModelRequest, from the
+   * agent's own `max_output_tokens` plus `actions.writeTokens`.
+   * This number only shapes the estimate offered at the gate.
+   */
   maxOutputTokens: readInt("NEUROLINK_ACTION_MAX_OUTPUT_TOKENS", 1_024),
   tokensPerDay: readInt("NEUROLINK_ACTION_TOKENS_PER_DAY", 200_000),
 };
@@ -2407,6 +2655,26 @@ export function describeAiConfig(): string[] {
       `${(documents.maxBytes / (1024 * 1024)).toFixed(0)} MB each, ` +
       `kept ${documents.retentionDays} days ` +
       `(newest ${documents.keepPerAgent} per agent, ${documents.keepPerUser} per learner)`
+  );
+
+  /*
+   * The two numbers that decide whether a tool can be used at
+   * the size its own description claims.
+   *
+   * Operator-facing, and it earns a line for the reason the key
+   * index below does: nothing on any screen shows it, and the
+   * failure it guards against is silent. A write budget lowered
+   * by an env var does not break anything visibly — it just
+   * means every agent is quietly promised less than it was
+   * yesterday, and nobody finds out until a document that used
+   * to fit stops fitting.
+   */
+  lines.push(
+    `[ai] actions: up to ${actions.maxSteps} steps a turn, ` +
+      `${actions.resultChars.toLocaleString()} chars per result ` +
+      `and ${actions.totalResultChars.toLocaleString()} across the turn, ` +
+      `+${actions.writeTokens.toLocaleString()} output tokens to write one ` +
+      `(~${actionWriteChars().toLocaleString()} chars of content)`
   );
 
   /*

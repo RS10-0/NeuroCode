@@ -16,7 +16,7 @@ import {
 /*
  * The Lab's own frame, inside BuildGentic's.
  *
- * The global rail — Dashboard, Courses, Lab, Agents, Projects —
+ * The global rail — Dashboard, Courses, Lab, Agents, Published —
  * stays exactly where it is and looks exactly as it does
  * everywhere else. This file adds a second, subordinate level
  * of navigation *within* the Lab, and it is horizontal on

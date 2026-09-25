@@ -140,6 +140,31 @@ export async function getDeployment(
 }
 
 /*
+ * Every deployment this learner holds, newest first.
+ *
+ * The across-agents counterpart to getDeployment, for the one
+ * screen that asks the question the other way round — not "is
+ * this agent live" but "what of mine is live at all". Every
+ * other caller knows which agent it means and should keep
+ * using getDeployment; this one is the inventory.
+ */
+export async function listDeployments(
+  userId: string
+): Promise<DeploymentSummary[]> {
+  const { data, error } = await supabase
+    .from("agent_deployments")
+    .select(DEPLOYMENT_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    fail("Unable to load your deployments.", `select failed: ${error.message}`);
+  }
+
+  return ((data ?? []) as DeploymentRow[]).map(toDeployment);
+}
+
+/*
  * The key currently able to answer, if any.
  *
  * A deployment with no active key is a real and useful state: the
@@ -164,6 +189,49 @@ export async function getActiveKey(
   }
 
   return data ? toKey(data as KeyRow) : null;
+}
+
+/*
+ * The active key for each of several deployments, keyed by
+ * deployment id.
+ *
+ * One query rather than one per deployment, the same reasoning
+ * as the knowledge tally on the shelf: the inventory screen
+ * needs this for every row it shows, and N round trips for a
+ * badge that says "paused" is N too many.
+ *
+ * A deployment with no active key is simply absent from the
+ * map, which is the same fact getActiveKey states with null.
+ */
+export async function listActiveKeys(
+  userId: string,
+  deploymentIds: string[]
+): Promise<Map<string, DeploymentKeySummary>> {
+  const found = new Map<string, DeploymentKeySummary>();
+
+  if (deploymentIds.length === 0) {
+    return found;
+  }
+
+  const { data, error } = await supabase
+    .from("agent_deployment_keys")
+    .select(KEY_COLUMNS)
+    .in("deployment_id", deploymentIds)
+    .eq("user_id", userId)
+    .is("revoked_at", null);
+
+  if (error) {
+    fail(
+      "Unable to load your deployment keys.",
+      `select failed: ${error.message}`
+    );
+  }
+
+  for (const row of (data ?? []) as KeyRow[]) {
+    found.set(row.deployment_id, toKey(row));
+  }
+
+  return found;
 }
 
 /* =========================================================

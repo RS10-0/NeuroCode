@@ -28,8 +28,16 @@
  */
 
 import { extractorFor } from "../server/src/files/extract/index";
-import { documents } from "../server/src/ai/config";
-import { parsePlan, type DocumentBlock } from "../server/src/agents/documents/plan";
+import {
+  actions,
+  actionWriteChars,
+  advertisedChars,
+  dataStore,
+  documents,
+  email,
+} from "../server/src/ai/config";
+import { estimateTokensFromChars } from "../server/src/ai/tokens";
+import { parsePlan, weigh, type DocumentBlock } from "../server/src/agents/documents/plan";
 import { render, filenameFor } from "../server/src/agents/documents/render";
 import {
   DocumentTooLarge,
@@ -38,6 +46,13 @@ import {
 import { encode, wrap, widthOf } from "../server/src/agents/documents/winansi";
 import { ZipArchive } from "../server/src/files/zip";
 import type { AcceptedFile } from "../server/src/files/types";
+import {
+  actionPayload,
+  bibliography,
+  bibliographyAsTable,
+  digestAsBlocks,
+  digestAsTable,
+} from "./documentFixtures.mts";
 
 /* ---------------------------------------------------------
    HARNESS
@@ -921,6 +936,234 @@ async function checkNoDatabase() {
 }
 
 /* ---------------------------------------------------------
+   8. WHAT A MODEL CAN ACTUALLY WRITE
+
+   The section that exists because everything above it passed
+   while the feature's headline case was impossible.
+
+   Every other check here measures what the SERVER will accept.
+   This one measures what the MODEL can produce, which is a
+   different ceiling and was for a long time an unstated one:
+   `documents.maxTotalChars` is 40,000, plan.ts enforces it
+   correctly, the renderers honour it — and none of that mattered,
+   because a document is JSON inside ONE action and that step's
+   output allowance was about 4,000 characters. The tool
+   description promised the first number. The runtime cut the
+   write off at the second. Nothing reported a limit, because no
+   individual component had exceeded one.
+
+   So the assertion is not "the validator accepts this". It is
+   "a step can emit this, and the description does not promise
+   more than a step can emit".
+   --------------------------------------------------------- */
+
+function checkWriteBudget() {
+  section("8. What a model can actually write");
+
+  const budget = actions.writeTokens;
+  const advertised = advertisedChars(documents.maxTotalChars);
+
+  /* The `{tool,args}` payload for a document, in the tokens the
+     runtime bills it at. */
+  const cost = (blocks: DocumentBlock[]) =>
+    estimateTokensFromChars(actionPayload(blocks).length);
+
+  /* What plan.ts counts, which is content only — no JSON. */
+  const content = (blocks: DocumentBlock[], title: string) =>
+    weigh(blocks) + title.length;
+
+  const TITLE = "Annotated bibliography — memory and revision";
+
+  /* -------------------------------------------------------
+     The measurements, printed whether they pass or not.
+
+     A future reader changing `writeTokens` needs the table more
+     than the verdict: it is the only place the relationship
+     between a document's size and a step's allowance is
+     visible.
+     ------------------------------------------------------- */
+
+  const fixtures: Array<[string, DocumentBlock[]]> = [
+    ["3-story digest, one table", digestAsTable()],
+    ["3-story digest, block per story", digestAsBlocks()],
+    ["6-source bibliography", bibliography(6)],
+    ["10-source bibliography", bibliography(10)],
+    ["10-source bibliography, as a table", bibliographyAsTable(10)],
+    ["16-source bibliography", bibliography(16)],
+  ];
+
+  console.log(`  budget: ${budget} tokens a step, ${advertised.toLocaleString()} chars advertised\n`);
+
+  for (const [label, blocks] of fixtures) {
+    const tokens = cost(blocks);
+    console.log(
+      `  ${label.padEnd(36)} ${String(tokens).padStart(5)} tok  ` +
+        `${String(content(blocks, TITLE)).padStart(6)} chars  ` +
+        `${tokens <= budget ? "fits" : "DOES NOT FIT"}`
+    );
+  }
+
+  console.log("");
+
+  /* -------------------------------------------------------
+     THE CASE THAT MATTERS.
+
+     "Keep a project's research organised across sessions" and a
+     citation export are what the Research Assistant flagship is
+     sold on. Ten sources with real annotations is the smallest
+     honest version of that, and it is the fixture that was
+     failing.
+     ------------------------------------------------------- */
+
+  const tenSources = bibliography(10);
+
+  check(
+    "a 10-source annotated bibliography fits one action",
+    cost(tenSources) <= budget,
+    `${cost(tenSources)} of ${budget} tokens`
+  );
+
+  check(
+    "and it fits with room for a fuller annotation, not by a whisker",
+    cost(tenSources) <= budget * 0.8,
+    `${Math.round((cost(tenSources) / budget) * 100)}% of the allowance`
+  );
+
+  /*
+   * The regression that started this. Sixteen sources is past
+   * what one action should carry, and the correct behaviour is
+   * for the description to say so rather than for the write to
+   * be cut off — `documents.maxPerTurn` is 2, so the model has
+   * somewhere to put the rest.
+   */
+  check(
+    "16 sources is over what one action carries, and is advertised as such",
+    content(bibliography(16), TITLE) > advertised,
+    `${content(bibliography(16), TITLE).toLocaleString()} chars against ${advertised.toLocaleString()} advertised`
+  );
+
+  /* -------------------------------------------------------
+     THE PROMISE ITSELF.
+
+     The advertised figure is not enforced by anything — it goes
+     into a prompt. Which means the only thing keeping it honest
+     is that a document of exactly that size, written in the
+     most expensive shape available, still fits the allowance.
+     ------------------------------------------------------- */
+
+  check(
+    "the description advertises less than the renderer accepts",
+    advertised < documents.maxTotalChars,
+    `${advertised.toLocaleString()} advertised, ${documents.maxTotalChars.toLocaleString()} enforced`
+  );
+
+  /*
+   * Built to land just under the advertised figure using the
+   * worst ratio in the fixture set — many short blocks, each
+   * paying for its own braces. If a document written to the
+   * limit in the least efficient shape still fits, the promise
+   * holds for every cheaper shape too.
+   */
+  const dense: DocumentBlock[] = [];
+  let packed = 0;
+
+  while (packed < advertised - 60) {
+    dense.push({ type: "text", text: "x".repeat(50) });
+    packed += 50;
+  }
+
+  /*
+   * The envelope counts. The two sentinels are 28 characters
+   * each and the scanner in protocol.ts exists because models
+   * write a sentence before them — so a check that measured the
+   * payload alone would pass at 99% of the allowance and still
+   * be cut off in production by the words "Here you go".
+   */
+  const envelopeTokens = estimateTokensFromChars(400);
+
+  check(
+    "a document written TO the advertised limit still fits the allowance",
+    cost(dense) + envelopeTokens <= budget,
+    `${content(dense, "d").toLocaleString()} chars in ${dense.length} blocks ` +
+      `costs ${cost(dense)} + ${envelopeTokens} envelope of ${budget} tokens`
+  );
+
+  /*
+   * And is still something plan.ts will render, which is the
+   * other half of the promise. An advertised figure the
+   * validator refuses would be the same bug pointing the other
+   * way.
+   */
+  const accepted = parsePlan({
+    format: "docx",
+    title: "Written to the limit",
+    blocks: dense,
+  });
+
+  check(
+    "and the validator accepts it",
+    accepted.ok,
+    accepted.ok ? `${dense.length} blocks` : accepted.error
+  );
+
+  /* -------------------------------------------------------
+     THE OTHER TWO TOOLS THAT QUOTE A SIZE.
+
+     Same class of problem, and worth asserting rather than
+     assuming: a tool whose own ceiling is already inside the
+     allowance should keep quoting its own, and every quoted
+     figure should be reachable.
+     ------------------------------------------------------- */
+
+  const others: Array<[string, number, (filled: string) => unknown]> = [
+    [
+      "data_set",
+      dataStore.maxValueChars,
+      (filled) => ({
+        key: "research/sources",
+        value: filled,
+        label: "Every source gathered for the memory essay",
+      }),
+    ],
+    [
+      "email_draft",
+      email.maxBodyChars,
+      (filled) => ({
+        to: ["supervisor@example.ac.uk"],
+        cc: [],
+        subject: "Sources for the memory essay",
+        body: filled,
+      }),
+    ],
+  ];
+
+  for (const [tool, own, args] of others) {
+    check(
+      `${tool} still quotes its own ceiling, which is inside the allowance`,
+      advertisedChars(own, "text") === own,
+      `${own.toLocaleString()} of ${actionWriteChars("text").toLocaleString()} chars a text field can carry`
+    );
+
+    /*
+     * A single long string is the cheapest payload there is, so
+     * its overhead is close to nothing — but "close to nothing"
+     * is not "nothing", and email_draft's 8,000 characters was
+     * NOT reachable before this change either. It was the same
+     * bug as make_document's, two and a half times over instead
+     * of eleven, and nobody had noticed because nobody had
+     * multiplied it out.
+     */
+    const payload = JSON.stringify({ tool, args: args("y".repeat(own)) });
+
+    check(
+      `and a ${tool} written to it fits one action`,
+      estimateTokensFromChars(payload.length) <= budget,
+      `${estimateTokensFromChars(payload.length)} of ${budget} tokens`
+    );
+  }
+}
+
+/* ---------------------------------------------------------
    MAIN
    --------------------------------------------------------- */
 
@@ -935,6 +1178,7 @@ async function main() {
   await checkDocx();
   checkFilenamesAndSize();
   await checkNoDatabase();
+  checkWriteBudget();
 
   console.log(`\n=== SUMMARY ===`);
   console.log(`  ${passed} passed, ${failed} failed`);

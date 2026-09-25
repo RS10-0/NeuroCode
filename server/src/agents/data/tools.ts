@@ -1,4 +1,4 @@
-import { dataStore as config } from "../../ai/config";
+import { advertisedChars, dataStore as config } from "../../ai/config";
 import type { ToolContext, ToolOutcome, ToolSpec } from "../actions/catalog";
 
 import { explainKey, isValidKey } from "./keys";
@@ -80,7 +80,7 @@ const dataSet: ToolSpec = {
       "  Your own notebook: it survives between answers and between scheduled runs. You do not remember previous conversations, but you can read this back.",
       `  args: { "key": "<name>", "value": "<text>", "label": "<optional note on what it is for>" }`,
       '  Names are lowercase with no spaces, and may use _ . : / and -. Group related things under a prefix like "habits/2026-09-01", and data_list can then fetch the whole group.',
-      `  A value is text up to ${config.maxValueChars.toLocaleString()} characters; write JSON into it and read it back with run_code if you need structure.`,
+      `  A value is text up to ${advertisedChars(config.maxValueChars, "text").toLocaleString()} characters; write JSON into it and read it back with run_code if you need structure.`,
       `  You may keep ${config.maxRecords} records. Saving over a name replaces it. If the store is full you are told and nothing is deleted to make room — say so rather than working around it.`,
     ].join("\n"),
 

@@ -4,8 +4,9 @@ import { Link, NavLink } from "react-router-dom";
 import ScheduleFeed from "./ScheduleFeed";
 import {
   Bot,
+  Clock,
   FlaskConical,
-  FolderOpen,
+  Globe,
   GraduationCap,
   Hammer,
   LayoutDashboard,
@@ -109,7 +110,38 @@ const NAV: NavEntry[] = [
       },
     ],
   },
-  { to: "/projects", label: "Projects", icon: FolderOpen },
+  /*
+   * Published, not Projects.
+   *
+   * It was Projects, and the name was the reason the tab sat
+   * empty for so long. "Projects" names a container you make —
+   * so it wants a New Project button, and there is no such
+   * object here to make: what a learner owns is agents, and
+   * pages and endpoints hanging off them. The tab kept
+   * promising a thing the product does not have.
+   *
+   * "Published" names what is actually on the screen, and it
+   * makes the empty state honest rather than broken: nothing is
+   * live yet is a true sentence about a real state, and it
+   * stops being true the moment the learner deploys.
+   */
+  { to: "/published", label: "Published", shortLabel: "Live", icon: Globe },
+  /*
+   * The other half of "what is this agent doing without me".
+   *
+   * A separate destination from Published rather than a section
+   * of it, because the two describe different sets of agents. A
+   * schedule needs no deployment — the server asks only for an
+   * agent — so a learner can have a nightly digest running and
+   * an empty Published page forever. Nesting this under that
+   * would hide the feature from exactly the person using it.
+   *
+   * The short label differs from the full one, as Dashboard's
+   * does: "Schedules" does not fit a 320px phone split eight
+   * ways, and "Runs" is the word for what you come here to read
+   * anyway.
+   */
+  { to: "/schedules", label: "Schedules", shortLabel: "Runs", icon: Clock },
 ];
 
 /* The tab bar has no room for group headings, so it takes the

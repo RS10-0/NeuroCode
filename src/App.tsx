@@ -23,11 +23,14 @@ import AgentDeploy from "./pages/AgentDeploy";
 import AgentSite from "./pages/AgentSite";
 import AgentSchedule from "./pages/AgentSchedule";
 import ExtensionConnect from "./pages/ExtensionConnect";
-import Projects from "./pages/Projects";
+import Published from "./pages/Published";
+import Schedules from "./pages/Schedules";
 import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
 import PublicSite from "./pages/PublicSite";
 import DevActivities from "./pages/DevActivities";
+import DevPublished from "./pages/DevPublished";
+import DevSchedules from "./pages/DevSchedules";
 import DevSites from "./pages/DevSites";
 import DevFlagships from "./pages/DevFlagships";
 import DevDesks from "./pages/DevDesks";
@@ -211,7 +214,8 @@ export default function App() {
                 path="/extension/connect"
                 element={<ExtensionConnect />}
               />
-              <Route path="/projects" element={<Projects />} />
+              <Route path="/published" element={<Published />} />
+              <Route path="/schedules" element={<Schedules />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
@@ -220,7 +224,7 @@ export default function App() {
 
               /learn was the course map before the navigation
               became Dashboard / Courses / Lab / My Agents /
-              Projects. Lesson URLs are untouched — only the
+              Published. Lesson URLs are untouched — only the
               index moved — so /learn/:lessonId is a live route
               above, not a redirect.
 
@@ -232,6 +236,15 @@ export default function App() {
             element={<Navigate to="/courses/ai-foundations" replace />}
           />
           <Route path="/build" element={<Navigate to="/agents" replace />} />
+          {/* /projects was an empty placeholder that promised a
+              container it never had. The tab is /published now,
+              and names what is actually on it. Redirected rather
+              than dropped because it was in the nav and on the
+              Dashboard, so it is in people's history. */}
+          <Route
+            path="/projects"
+            element={<Navigate to="/published" replace />}
+          />
           {/* An old deep link. The course page is /courses/:courseId
               now, so send the trailing /lessons form to the library
               rather than 404-ing it. */}
@@ -293,6 +306,33 @@ export default function App() {
 
           {import.meta.env.DEV ? (
             <Route path="/dev/canvas" element={<DevCanvas />} />
+          ) : null}
+
+          {/* Every state a row on the Published screen can be
+              in. Worth a gallery for the same reason the desks
+              are: the states that matter most there — a page
+              taken down, a revoked key, a schedule that
+              switched itself off — each cost a deployment and
+              a deliberate act of undoing to reach by hand, so
+              they are the ones nobody checks. Same tree
+              shaking. */}
+
+          {import.meta.env.DEV ? (
+            <Route path="/dev/published" element={<DevPublished />} />
+          ) : null}
+
+          {/* Every outcome a scheduled run can have. The
+              sharpest case for a gallery here: you cannot ask
+              for a confabulated run, or a web search that came
+              back empty, or a task that genuinely runs out of
+              steps — you wait for one. So these are the cards
+              most likely to ship broken, and they are the ones
+              whose whole job is to tell a learner not to
+              believe an answer that reads perfectly well. Same
+              tree shaking. */}
+
+          {import.meta.env.DEV ? (
+            <Route path="/dev/schedules" element={<DevSchedules />} />
           ) : null}
 
           {/* The AI runtime harness. Behind the auth gate, unlike

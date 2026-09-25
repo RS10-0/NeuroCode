@@ -45,6 +45,15 @@ import {
   renderUnreadable,
 } from "../server/src/agents/actions/protocol";
 import { isToolId, toolsFor, TOOLS } from "../server/src/agents/actions/catalog";
+import {
+  actions,
+  advertisedChars,
+  documents,
+  limitsFor,
+} from "../server/src/ai/config";
+import { findModel, PUBLIC_MODEL_ID } from "../server/src/ai/models";
+import { estimateTokensFromChars } from "../server/src/ai/tokens";
+import { buildModelRequest } from "../server/src/ai/validation";
 
 /* ---------------------------------------------------------
    HARNESS
@@ -733,6 +742,185 @@ function checkProtocol() {
     "running out of steps is explained, not silent",
     limit.includes("Answer the person now") && limit.includes("Do not run another tool"),
     "the model is told it gets no more turns"
+  );
+
+  /* -------------------------------------------------------
+     5e. THE ALLOWANCE A STEP GETS TO WRITE ONE
+
+     The other half of what 5d above recovers from.
+
+     A truncated action is handled gracefully — one retry, then
+     an honest stop. But the cheapest truncation to handle is
+     the one that does not happen, and for a long time the
+     commonest cause was not a model being verbose. It was
+     arithmetic: an action is written IN ADDITION to whatever
+     the agent says, and it was given no room for one. The
+     agent's `max_output_tokens` sized an ANSWER, and the whole
+     JSON payload of a tool call had to come out of the same
+     allowance.
+
+     So a step that may still act is built with
+     `actions.writeTokens` on top, and a closing pass — which is
+     forbidden to act — is not. Driven through buildModelRequest
+     directly: it is a pure function of a body, a model and a
+     limits object, which makes the one number this fix turns on
+     testable with no provider, no database and no network.
+     ------------------------------------------------------- */
+
+  section("5e. THE ALLOWANCE A STEP GETS TO WRITE ONE");
+
+  const model = findModel(PUBLIC_MODEL_ID);
+
+  if (!model) {
+    check("the public model is in the catalogue", false);
+    return;
+  }
+
+  const limits = limitsFor();
+
+  /* An agent as the Builder saves one: the default answer
+     budget, which is also the platform ceiling. */
+  const body = {
+    model: PUBLIC_MODEL_ID,
+    system: "You are a research assistant.",
+    messages: [{ role: "user" as const, content: "Export my sources." }],
+    settings: { maxOutputTokens: 1_024 },
+  };
+
+  const answerOnly = buildModelRequest(body as never, model, limits);
+  const actingPass = buildModelRequest(
+    body as never,
+    model,
+    limits,
+    actions.writeTokens
+  );
+
+  check(
+    "an agent with no tools is given exactly what its owner set",
+    answerOnly.settings.maxOutputTokens === 1_024,
+    `${answerOnly.settings.maxOutputTokens} tokens`
+  );
+
+  check(
+    "a step that may act gets the write allowance on top",
+    actingPass.settings.maxOutputTokens === 1_024 + actions.writeTokens,
+    `${answerOnly.settings.maxOutputTokens} -> ${actingPass.settings.maxOutputTokens} tokens`
+  );
+
+  /*
+   * The bug this replaced, stated as an assertion rather than a
+   * memory. Raising the ceiling alone changes nothing, because
+   * the result is the smaller of the ask and the ceiling — and
+   * the ask was the agent's own 1,024. Anyone who "fixes" this
+   * by moving a limit and not the request will fail here.
+   */
+  check(
+    "and that is more than the power source's own output ceiling",
+    actingPass.settings.maxOutputTokens > limits.maxOutputTokens,
+    `${actingPass.settings.maxOutputTokens} against a ${limits.maxOutputTokens}-token ceiling`
+  );
+
+  /*
+   * AND IT IS NOT A BLANK CHEQUE, which is the half of this
+   * that keeps the platform ceiling meaningful.
+   *
+   * An agent whose owner set `max_output_tokens` to the
+   * catalogue maximum does not get the catalogue maximum plus
+   * an allowance. The power source's ceiling is raised by
+   * exactly `writeTokens` and the ask is still clamped to it —
+   * so the allowance buys room for one tool call and nothing
+   * else, whatever the row asks for.
+   */
+  const greedy = buildModelRequest(
+    { ...body, settings: { maxOutputTokens: model.maxOutputTokens } } as never,
+    model,
+    limits,
+    actions.writeTokens
+  );
+
+  check(
+    "an agent asking for everything is still clamped to the raised ceiling",
+    greedy.settings.maxOutputTokens ===
+      limits.maxOutputTokens + actions.writeTokens,
+    `asked ${model.maxOutputTokens}, got ${greedy.settings.maxOutputTokens}`
+  );
+
+  check(
+    "and never past what a provider will actually produce",
+    greedy.settings.maxOutputTokens <= model.maxOutputTokens,
+    `${greedy.settings.maxOutputTokens} within the catalogue's ${model.maxOutputTokens}`
+  );
+
+  /*
+   * A closing pass answers with the tools block gone, so giving
+   * it room for a tool call it may not make would quietly
+   * redefine `max_output_tokens` for every tool-enabled agent
+   * on the platform. AiRuntime passes 0 there; this is that
+   * argument.
+   */
+  check(
+    "a closing pass falls back to the owner's own setting",
+    buildModelRequest(body as never, model, limits, 0).settings
+      .maxOutputTokens === 1_024,
+    "the pass that cannot act does not pay for acting"
+  );
+
+  /*
+   * And the allowance is big enough for the thing it was sized
+   * from. Measured in verify-documents.mts section 8 against
+   * real block lists; asserted here as the floor, so that
+   * lowering `writeTokens` without re-measuring fails in the
+   * suite that owns the loop rather than silently in production.
+   */
+  const TEN_SOURCE_BIBLIOGRAPHY_TOKENS = 1_791;
+
+  check(
+    "the allowance covers the payload it was sized from",
+    actions.writeTokens >= TEN_SOURCE_BIBLIOGRAPHY_TOKENS,
+    `${actions.writeTokens} tokens against a ten-source bibliography's ${TEN_SOURCE_BIBLIOGRAPHY_TOKENS}`
+  );
+
+  /*
+   * What make_document tells the model, checked against what a
+   * step can reach rather than against a hard-coded number.
+   *
+   * This is the assertion that would have caught the original
+   * defect: the description advertised 40,000 characters, which
+   * is about 11,600 tokens of payload, from a step that could
+   * spend 1,024.
+   */
+  const documentTool = TOOLS.find((tool) => tool.id === "make_document");
+
+  /*
+   * Checked as a SHARE of the allowance rather than against a
+   * number, because a figure derived from `writeTokens` and then
+   * compared to `writeTokens` proves nothing.
+   *
+   * What is actually being asserted: the advertised content, at
+   * its bare character cost with no JSON around it at all, must
+   * leave most of the allowance unspent — because braces,
+   * `"type"` keys, quoting and the sentinels are the rest of it.
+   * An advertised figure that used the whole budget as plain
+   * text would be the original defect in miniature.
+   */
+  const advertised = advertisedChars(documents.maxTotalChars);
+  const bareCost = estimateTokensFromChars(advertised);
+
+  check(
+    "make_document advertises a figure a step can actually reach",
+    documentTool !== undefined && bareCost <= actions.writeTokens * 0.65,
+    `${advertised.toLocaleString()} chars is ${Math.round(
+      (bareCost / actions.writeTokens) * 100
+    )}% of the allowance before any JSON is counted`
+  );
+
+  check(
+    "and it no longer quotes the renderer's ceiling at the model",
+    documentTool !== undefined &&
+      !documentTool
+        .description()
+        .includes(documents.maxTotalChars.toLocaleString()),
+    `${documents.maxTotalChars.toLocaleString()} is what plan.ts enforces, not what a model can write`
   );
 }
 

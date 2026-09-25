@@ -620,11 +620,24 @@ function parseAttachments(raw: unknown): string[] {
  * ceilings meet: whatever the caller asked for is clamped by the
  * power source's budget and then by what the model itself can
  * actually produce.
+ *
+ * `extraOutputTokens` is the one way past the power source's
+ * output budget, and it exists for a single caller: a step of
+ * the action loop that may still write a tool call. That call is
+ * emitted as JSON in the same breath as whatever the agent says,
+ * so it is output the owner's `max_output_tokens` was never
+ * sizing — see `actions.writeTokens`, which is the only value
+ * ever passed here. It raises the ASK and the source's ceiling
+ * together, because raising one alone does nothing: the result
+ * is the smaller of the two. `model.maxOutputTokens` is not
+ * raised and still bounds the result, so no caller can talk this
+ * past what a provider will actually produce.
  */
 export function buildModelRequest(
   parsed: ParsedChatBody,
   model: ModelDescriptor,
-  limits: QuotaLimits
+  limits: QuotaLimits,
+  extraOutputTokens = 0
 ): ModelRequest {
   const inputChars = countInputChars(parsed.messages, parsed.system);
 
@@ -635,12 +648,14 @@ export function buildModelRequest(
     );
   }
 
+  const extra = Math.max(0, extraOutputTokens);
+
   const requested =
-    parsed.settings.maxOutputTokens ?? model.defaultMaxOutputTokens;
+    (parsed.settings.maxOutputTokens ?? model.defaultMaxOutputTokens) + extra;
 
   const ceiling =
     limits.maxOutputTokens > 0
-      ? Math.min(limits.maxOutputTokens, model.maxOutputTokens)
+      ? Math.min(limits.maxOutputTokens + extra, model.maxOutputTokens)
       : model.maxOutputTokens;
 
   return {

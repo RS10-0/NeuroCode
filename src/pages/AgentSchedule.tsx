@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   AlertTriangle,
-  FileDown,
   ArrowLeft,
   Clock,
   Loader2,
@@ -10,8 +9,6 @@ import {
   Play,
   Plus,
   Trash2,
-  Globe,
-  Wrench,
 } from "lucide-react";
 
 import {
@@ -28,8 +25,8 @@ import {
   useToast,
 } from "../components/ui";
 import AgentFace from "../features/agents/AgentFace";
+import RunCard from "../features/agents/RunCard";
 import {
-  downloadDocument,
   listAgentDocuments,
   type StoredDocumentSummary,
 } from "../features/agents/documentsApi";
@@ -52,7 +49,6 @@ import {
   isClockAnchored,
   listSchedules,
   localTimezone,
-  outcomeCopy,
   runNow,
   searchedAndFoundNothing,
   updateSchedule,
@@ -326,201 +322,6 @@ function ScheduleForm({
   );
 }
 
-/* =========================================================
-   A RUN
-
-   The evidence half of the feature. Everything a learner needs
-   to decide whether to believe the answer is on this card.
-========================================================= */
-
-function RunCard({
-  run,
-  documents,
-}: {
-  run: Run;
-  documents: StoredDocumentSummary[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [downloading, setDownloading] = useState<string | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const copy = outcomeCopy(run);
-
-  const when = new Date(run.startedAt).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  return (
-    <li className={`runcard runcard--${copy.tone}`}>
-      <div className="runcard__head">
-        <Badge tone={copy.tone}>{copy.label}</Badge>
-        <span className="runcard__when">{when}</span>
-        {run.trigger === "manual" ? (
-          <Badge tone="neutral">Test run</Badge>
-        ) : null}
-        <span className="runcard__meta">
-          {run.latencyMs !== null ? `${(run.latencyMs / 1000).toFixed(1)}s` : "—"}
-          {run.xpSpent > 0 ? ` · ${run.xpSpent} XP` : ""}
-          {run.toolCalls > 0
-            ? ` · ${run.toolCalls} tool ${run.toolCalls === 1 ? "step" : "steps"}`
-            : ""}
-        </span>
-      </div>
-
-      <p className="runcard__meaning">{copy.meaning}</p>
-
-      {/*
-       * The files this run produced.
-       *
-       * Built from document rows, never from the run's output
-       * text — which is the whole of why this is trustworthy. A
-       * run whose answer says "the report is attached" and which
-       * made no file shows nothing here, and the contradiction
-       * sits directly under the claim.
-       */}
-      {documents.length > 0 ? (
-        <div className="runcard__files">
-          {documents.map((file) => (
-            <div className="runcard__file" key={file.id}>
-              <FileDown size={13} aria-hidden="true" />
-              <span className="runcard__file-name">{file.filename}</span>
-              <span className="runcard__file-size">
-                {file.bytes < 1024
-                  ? `${file.bytes} bytes`
-                  : `${Math.round(file.bytes / 1024)} KB`}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={downloading === file.id}
-                onClick={async () => {
-                  setDownloading(file.id);
-                  setFileError(null);
-
-                  try {
-                    await downloadDocument(file.id, file.filename);
-                  } catch (cause) {
-                    setFileError(
-                      cause instanceof Error
-                        ? cause.message
-                        : "The file could not be downloaded."
-                    );
-                  } finally {
-                    setDownloading(null);
-                  }
-                }}
-              >
-                {downloading === file.id ? "Opening…" : "Download"}
-              </Button>
-
-              {file.degraded ? (
-                <p className="runcard__file-note">{file.degraded}</p>
-              ) : null}
-            </div>
-          ))}
-
-          {fileError ? <p className="runcard__claim">{fileError}</p> : null}
-        </div>
-      ) : null}
-
-      {/*
-       * The confabulation banner, and the sentence that caused
-       * it. Showing the phrase is the difference between a
-       * warning a learner can check and one they have to take on
-       * faith — and the second kind gets ignored.
-       */}
-      {run.outcome === "confabulated" && run.claimPhrase ? (
-        <p className="runcard__claim">
-          <AlertTriangle size={13} aria-hidden="true" /> It said:{" "}
-          <q>{run.claimPhrase}</q>
-        </p>
-      ) : null}
-
-      {run.missedRuns > 0 ? (
-        <p className="runcard__missed">
-          {run.missedRuns} earlier run{run.missedRuns === 1 ? "" : "s"} were
-          missed while BuildGentic was unreachable. They were not repeated.
-        </p>
-      ) : null}
-
-      {run.output ? (
-        <>
-          <button
-            type="button"
-            className="runcard__toggle"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-          >
-            {open ? "Hide" : "Show"} what it said
-            {run.trace.length > 0 ? ` and what it ran (${run.trace.length})` : ""}
-          </button>
-
-          {open ? (
-            <div className="runcard__body">
-              {run.trace.length > 0 ? (
-                <ol className="runtrace">
-                  {run.trace.map((entry, index) => (
-                    <li
-                      key={`${entry.step}-${entry.kind}-${index}`}
-                      className={`runtrace__item runtrace__item--${entry.kind}${
-                        entry.kind === "search" && entry.ok ? " is-ok" : ""
-                      }`}
-                    >
-                      {entry.kind === "search" ? (
-                        <Globe size={12} aria-hidden="true" />
-                      ) : (
-                        <Wrench size={12} aria-hidden="true" />
-                      )}
-                      <span className="runtrace__tool">
-                        {entry.kind === "search"
-                          ? entry.provider
-                            ? `web search (${entry.provider})`
-                            : "web search"
-                          : (entry.tool ??
-                            (entry.kind === "limit" ? "step limit" : "unreadable action"))}
-                      </span>
-                      <span className="runtrace__detail">
-                        {entry.kind === "search"
-                          ? entry.ok
-                            ? `read ${entry.resultCount ?? 0} ${
-                                entry.resultCount === 1 ? "page" : "pages"
-                              }`
-                            : /* The line this whole change exists to
-                                 print. Says what happened and what it
-                                 means, because "no_results" means
-                                 nothing to the person reading it. */
-                              "found nothing — everything below is from memory, not the web"
-                          : entry.kind === "call"
-                            ? "asked to run"
-                            : entry.kind === "limit"
-                              ? entry.reason === "budget"
-                                ? "no room left for more tool output"
-                                : "used all 4 steps"
-                              : entry.ok
-                                ? entry.summary
-                                : entry.error}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-
-              <pre className="runcard__output">{run.output}</pre>
-
-              {run.outputTruncated ? (
-                <p className="runcard__missed">
-                  The answer was longer than this and was cut off.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-    </li>
-  );
-}
 
 /* =========================================================
    ONE SCHEDULE
@@ -592,6 +393,9 @@ function ScheduleCard({
 
   return (
     <Panel
+      /* The Schedules index links here by hash. See the effect
+         on the page below that acts on it. */
+      id={`schedule-${schedule.id}`}
       title={schedule.label}
       actions={
         schedule.enabled ? (
@@ -844,6 +648,7 @@ interface Loaded {
 
 export default function AgentSchedule() {
   const { agentId } = useParams<{ agentId: string }>();
+  const { hash } = useLocation();
   const { notify } = useToast();
 
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -976,6 +781,32 @@ export default function AgentSchedule() {
       active = false;
     };
   }, [load, apply]);
+
+  /*
+   * Land on the schedule the Schedules index linked to.
+   *
+   * The browser cannot do this for us. It acts on a hash when
+   * the document loads, and at that moment this page is a
+   * skeleton — the panel with that id does not exist until the
+   * fetch above resolves. So the scroll waits for the schedules
+   * to arrive and then does it once.
+   *
+   * Depends on `schedules` rather than `loading` because it is
+   * the panels existing that matters, and `hash` because a
+   * second click on a different row while already here changes
+   * only that. A missing element is not an error: the hash may
+   * name a schedule that has since been deleted, in which case
+   * the top of the page is the right place to be.
+   */
+  useEffect(() => {
+    if (schedules.length === 0 || !hash) {
+      return;
+    }
+
+    const target = document.getElementById(hash.slice(1));
+
+    target?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [schedules, hash]);
 
   const guard = useCallback(
     async (verb: string, action: () => Promise<void>) => {

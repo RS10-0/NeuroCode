@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Bot, FolderOpen, Zap } from "lucide-react";
+import { ArrowRight, Bot, Globe, Zap } from "lucide-react";
 
 import { learningEngine } from "../core/learning";
 import { COURSE_CATALOG } from "../features/courses/catalog";
@@ -324,14 +324,15 @@ export default function Dashboard() {
                 </span>
               </Link>
 
-              <Link to="/projects" className="lesson-row lesson-row--nav">
+              <Link to="/published" className="lesson-row lesson-row--nav">
                 <span className="lesson-row__index">
-                  <FolderOpen size={14} aria-hidden="true" />
+                  <Globe size={14} aria-hidden="true" />
                 </span>
                 <span className="lesson-row__body">
-                  <span className="lesson-row__title">Projects</span>
+                  <span className="lesson-row__title">Published</span>
                   <span className="lesson-row__sub">
-                    Apps you have made, and where they are deployed.
+                    Every page and endpoint of yours that other people can
+                    reach.
                   </span>
                 </span>
                 <span className="lesson-row__meta lesson-row__go">
