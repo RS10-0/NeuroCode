@@ -291,7 +291,15 @@ export default function EmailSection({
           </Callout>
         ) : null}
 
-        {status?.configured && !account ? (
+        {status?.allowed === false ? (
+          <Callout tone="info" title="Email isn't available on accounts for under-13s">
+            Connecting an email account lets an agent read and send real mail,
+            so it's switched off for accounts a parent or guardian approved.
+            Everything else about this agent works as normal.
+          </Callout>
+        ) : null}
+
+        {status?.configured && status.allowed !== false && !account ? (
           <div className="emailacct emailacct--empty">
             <EmptyState
               icon={<Mail size={20} />}

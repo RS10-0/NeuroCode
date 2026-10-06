@@ -58,6 +58,29 @@ The Chrome extension is the one caller that talks to
 `api.buildgentic.com` directly rather than through the Vercel rewrite —
 see [Chrome extension](#chrome-extension) below.
 
+### Security headers
+
+`vercel.json` also sets a Content-Security-Policy, `X-Frame-Options:
+DENY`, `nosniff`, a Referrer-Policy and a Permissions-Policy on every
+response. The CSP is tight because everything the app loads is its own:
+scripts, styles and fonts are bundled, and every fetch is a relative
+`/api` call except Supabase Auth, which is the one outside origin in
+`connect-src`.
+
+`img-src` is the directive doing the most work. Model output is rendered
+as markdown, and markdown can carry `![](https://…)`. An image URL is a
+request the browser makes on its own, so a prompt-injected answer could
+put a learner's data in a query string and send it anywhere. `img-src
+'self' data: blob:` stops that at the browser, whatever the sanitiser
+lets through.
+
+**If something stops working after a deploy, the console says which
+directive refused what.** Add the origin to that one directive, not to
+`default-src`. Adding a third-party script, font, image host, analytics
+tool or a second API origin means editing this policy first. The same
+goes for `frame-ancestors 'none'`: published agent pages cannot be
+embedded in an iframe until that is relaxed on purpose.
+
 Nothing in this document is done automatically. It is the checklist for
 what to click and paste, once, by hand.
 
@@ -267,12 +290,133 @@ change.
 
 ## Supabase dashboard
 
-The app currently has no OAuth or magic-link redirect code (auth is plain
-email/password), so there is no code depending on this — but set it
-anyway so any future email-based flow doesn't quietly point at localhost:
+Password reset is the one email flow, and it depends on all three of
+these. None of them can be set from code.
 
-**Authentication → URL Configuration → Site URL**:
+**1. Authentication → URL Configuration → Site URL**:
 `https://www.buildgentic.com`
+
+**2. Authentication → URL Configuration → Redirect URLs**, add:
+
+- `https://www.buildgentic.com/reset-password`
+- `http://localhost:5199/reset-password` (or whichever port you run
+  Vite on) so a reset requested in development comes back to it
+
+`requestPasswordReset` in `src/auth/AuthContext.tsx` asks for the link
+to return to the origin that requested it. Supabase honours that only
+for an entry on this list. For anything else it silently sends the
+Site URL instead, so a missing entry does not error. The email arrives
+and its link opens the homepage rather than the reset form.
+
+**3. Project Settings → Authentication → SMTP Settings**: turn on custom
+SMTP and point it at Resend (host `smtp.resend.com`, port 465, user
+`resend`, password a Resend API key), sending from an address on the
+domain verified with Resend. Supabase's built-in mailer is for trying
+things out. It is heavily rate-limited and may only deliver to your
+own team's addresses, so a learner who asks for a reset gets nothing,
+with no error on either side.
+
+Optionally, edit the wording under **Authentication → Email Templates →
+Reset Password**. Keep `{{ .ConfirmationURL }}` as the link. The app
+reads the token from that link's URL fragment
+(`recoveryLink` in `src/lib/supabase.ts`).
+
+**Checking it end to end** after a deploy: ask for a reset on
+`/forgot-password` for an account you own, then open the email.
+- The link should land on `/reset-password` showing a password form
+  with the account's address in it. Landing on the homepage means the
+  Redirect URL is missing (step 2).
+- Opening the same link a second time should say it has stopped
+  working. Reset links are single-use.
+- Some corporate and school mail scanners open links to check them,
+  which spends a reset link before the person clicks it. If a
+  learner's very first click says "stopped working", that is the
+  likely cause, and asking for a new link is the fix.
+
+## The age gate and parental consent
+
+Sign-up asks for month and year of birth, and an account under 13
+stays switched off until a parent agrees by email
+(`server/src/account/`). Three things have to be true in production.
+
+**1. Migration 0024 applied *before* the code is deployed.** Paste
+`supabase/migrations/0024_age_gate.sql` into the SQL editor. Without
+it, the gate fails open on purpose (no learner gets locked out) and
+the age question can never be saved, so the site looks fine with no
+gate at all. The startup banner names 0024 as missing in that case.
+Check it there after the deploy.
+
+**2. Resend configured** (`NEUROLINK_RESEND_API_KEY` and
+`NEUROLINK_MAIL_FROM` on Render, from a domain verified with Resend).
+This is no longer optional:
+
+- An under-13 sign-up asks `/api/account/consent/available` first.
+  Without mail it is refused with a message before any account is
+  created.
+- So an unset key means **no under-13s can join**, and nothing breaks
+  for anyone else.
+
+**3. `NEUROLINK_PUBLIC_SITE_URL=https://www.buildgentic.com`**, already
+in the Render list above. The links in the parent's emails are built
+from it, and unset they point at localhost.
+
+The 7-day deletion of unanswered requests runs on the scheduler tick,
+so it needs the external tick from the scheduler section above. Each
+tick's result reports how many it removed as `consentsExpired`.
+
+**Checking it end to end**, with two email addresses you control:
+- Sign up giving a birth year that makes you 12. The parent email
+  should arrive, and the account should show "Waiting for your parent".
+- Open the link and approve. The account should work, with Publish,
+  Deploy and Email showing the under-13 notice. A confirmation email
+  with a withdraw link should arrive.
+- Open the withdraw link and confirm. The account should be gone.
+
+**Which AI providers an account reaches.** Accounts under 13, and
+accounts that have not answered the age question yet, only ever go
+to Groq and Cloudflare. The other two (OpenRouter's free NVIDIA
+endpoint and Mistral's free plan) may use requests to train their
+own models, so they are skipped for those accounts. Each
+provider's `trainsOnPrompts` in `server/src/ai/providerChain.ts`
+decides this. Moving Mistral to a paid plan that does not train
+means flipping its flag, after reading that plan's terms.
+
+That makes Groq and Cloudflare's free daily allowances (roughly 300
+requests a day together, shared with everyone, because every
+request tries them first) the ceiling for under-13 use. Past it,
+those learners see "try again later" while older learners carry
+on via the other providers.
+
+**Embeddings moved from Gemini to Cloudflare** (`@cf/baai/bge-base-en-v1.5`,
+768 dimensions like before, so no migration). The Gemini API's
+terms forbid services used by under-18s. After deploying:
+
+1. Re-embed existing knowledge. Old chunks can't be searched with
+   the new model, so until this runs, agents answer as if they had
+   no knowledge:
+   ```bash
+   npx tsx ./scripts/reindex-knowledge.mts --dry-run
+   npx tsx ./scripts/reindex-knowledge.mts
+   ```
+2. Nothing to set for the retrieval similarity floor. Its default
+   is now 62, measured against the new model
+   (`scripts/measure-embedding-threshold.mts`: relevant 0.680–0.815,
+   irrelevant 0.427–0.558). Leave `NEUROLINK_RETRIEVAL_MIN_SIMILARITY`
+   unset on Render. Re-run that script if the embedding model ever
+   changes again.
+3. `NEUROLINK_GEMINI_API_KEY` is no longer read, and the startup log
+   says so. Delete it from Render.
+
+**Changing a recorded age** (a learner who picked the wrong year) is
+deliberately not a button. In the SQL editor:
+
+```sql
+update public.user_account_scope
+   set age_band = null, consent_status = null
+ where user_id = '<the user id>';
+```
+
+They are asked again on their next page view.
 
 ## Chrome extension
 

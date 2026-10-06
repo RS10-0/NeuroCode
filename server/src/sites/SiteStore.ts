@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { AiRuntimeError } from "../ai/errors";
+import { ownerMustWithdraw } from "../account/AgeGate";
 import { getAgentById, type AgentRecord } from "../agents/AgentStore";
 import { flagshipPublishable } from "../../../src/features/agents/flagships";
 import {
@@ -522,6 +523,19 @@ export async function resolveSite(
    * something this rule has any business withdrawing.
    */
   if (agent.isOfficial && !flagshipPublishable(agent.flagshipId)) {
+    return null;
+  }
+
+  /*
+   * The same principle for owners: a page belonging to an
+   * account recorded as under 13 does not answer, whatever the
+   * row says. Publishing is refused for those accounts where a
+   * page is created, but a page made before the age question
+   * existed predates that check — exactly the gap the flagship
+   * rule above closes for agents. Covers the chat as well as the
+   * page, for the reason given above.
+   */
+  if (await ownerMustWithdraw(row.user_id)) {
     return null;
   }
 

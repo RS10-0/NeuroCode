@@ -1,5 +1,6 @@
 import { learningEngine } from "../../core/learning";
 import { CURRICULA } from "../../core/curriculum/registry";
+import { COURSE_SUMMARY } from "./summary";
 
 /*
  * The course library.
@@ -32,20 +33,13 @@ export interface CatalogCourse {
 /*
  * The library card for each course. Written for somebody
  * deciding whether to start it, which is a different job from
- * the curriculum description the course page shows.
+ * the curriculum description the course page shows. Kept in
+ * summary.ts, which the landing page reads without pulling in
+ * the curriculum.
  */
-const BLURBS: Record<string, string> = {
-  "ai-foundations":
-    "Learn the foundations of artificial intelligence, machine learning, generative AI, and responsible AI use.",
-  "prompt-engineering":
-    "Why instructions change what an AI does. Context, constraints, formats and examples — ending with a real rewrite in the Lab.",
-  "ai-agents":
-    "What separates an agent from a chatbot, and how to give one goals, memory and tools. Ends by building one for real.",
-  "ai-websites":
-    "Turn something you built into something you can show someone. Design, writing, testing — and publishing a real page.",
-  "ai-ethics":
-    "Trust, hallucinations, bias, privacy and schoolwork — worked through as scenarios rather than handed down as rules.",
-};
+const BLURBS: Record<string, string> = Object.fromEntries(
+  COURSE_SUMMARY.map((course) => [course.courseId, course.description])
+);
 
 export const COURSE_CATALOG: CatalogCourse[] = CURRICULA.map(
   (curriculum) => ({

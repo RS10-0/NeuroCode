@@ -7,6 +7,7 @@ import type {
   RuntimeStreamEvent,
 } from "../../ai/types";
 import { costOf, SURCHARGES } from "../../credits/costs";
+import { accountBlocked } from "../../account/AgeGate";
 import { snapshot } from "../../credits/CreditStore";
 import { getAgent, listKnowledge } from "../AgentStore";
 
@@ -163,6 +164,16 @@ interface Precondition {
 }
 
 async function preflight(input: ScheduledRunInput): Promise<Precondition> {
+  /*
+   * An account waiting for a parent's consent does nothing — the
+   * same rule requireUser applies to every signed-in request,
+   * applied to the one caller that never makes one. Skipped
+   * rather than failed, so the breaker does not count it.
+   */
+  if (await accountBlocked(input.userId)) {
+    return { ok: false, detail: "account_pending" };
+  }
+
   /*
    * The XP reserve, and it applies to SCHEDULED runs only.
    *

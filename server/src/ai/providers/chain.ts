@@ -105,6 +105,9 @@ export const cloudflareProvider = createOpenAiCompatibleProvider({
   /* See the spec field. This GET reports a dead token as 400,
      where the chat endpoint correctly reports 401. */
   validateAuthFailureStatuses: [400],
+  /* The platform's embedding model lives here — embeddingModels.ts
+     says why. Same OpenAI-compatible gateway as the chat URL. */
+  embeddingsUrl: `${cloudflareBase}/v1/embeddings`,
 });
 
 /*

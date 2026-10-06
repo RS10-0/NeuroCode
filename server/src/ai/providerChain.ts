@@ -136,6 +136,23 @@ export interface ChainEntry {
    *     reasoning_effort low   7 reasoning tokens, 508 chars out
    */
   thinking?: Record<string, string | number>;
+  /*
+   * Whether this provider, on the plan BuildGentic is on, keeps
+   * what it is sent to train or improve its own models.
+   *
+   * Read by resolveChain to decide who may answer an account
+   * under 13 — or one that has not answered the age question —
+   * which only ever goes to entries where this is false. The
+   * parent's consent email promises that what their child types
+   * is not used to train AI, and this is the field that keeps
+   * the promise true.
+   *
+   * A property of the PLAN, not of the vendor: Mistral's free
+   * Experiment plan requires opting in to training, and its paid
+   * plans do not. Moving an entry to a plan that does not train
+   * means flipping this, after reading that plan's terms.
+   */
+  trainsOnPrompts: boolean;
 }
 
 /*
@@ -178,6 +195,9 @@ export const PROVIDER_CHAIN: ChainEntry[] = [
     /* gpt-oss is text-only. */
     vision: false,
     thinking: { reasoning_effort: "low" },
+    /* Groq's data processing terms commit to not training on
+       customer content, and it retains none by default. */
+    trainsOnPrompts: false,
   },
   {
     providerId: "cloudflare",
@@ -233,6 +253,9 @@ export const PROVIDER_CHAIN: ChainEntry[] = [
      * to be worth closing.
      */
     thinking: { reasoning_effort: "low" },
+    /* Cloudflare does not use Workers AI customer content to train
+       models or improve any service without explicit consent. */
+    trainsOnPrompts: false,
   },
   {
     providerId: "openrouter",
@@ -295,6 +318,9 @@ export const PROVIDER_CHAIN: ChainEntry[] = [
     /* Accepted by this model — checked, rather than inherited
        from the entry this replaced. */
     thinking: { reasoning_effort: "low" },
+    /* NVIDIA's free endpoint logs sessions "to improve NVIDIA
+       products and services" and asks for no personal data. */
+    trainsOnPrompts: true,
   },
   {
     providerId: "mistral",
@@ -305,8 +331,29 @@ export const PROVIDER_CHAIN: ChainEntry[] = [
     vision: false,
     /* mistral-small does not reason before answering, so there
        is nothing to suppress. */
+    /* The free Experiment plan requires opting in to requests
+       being used to train Mistral's models. False on a paid plan
+       — see the field's note. */
+    trainsOnPrompts: true,
   },
 ];
+
+/*
+ * The candidates left once every provider that trains on prompts
+ * is removed — what an under-13 (or not-yet-asked) account is
+ * allowed to reach. See resolvePowerSource.
+ *
+ * An entry of `null` is the offline mock, which trains nothing
+ * and stays. Generic so it filters whatever candidate shape the
+ * caller holds without this file importing types.ts.
+ */
+export function withoutTrainingProviders<
+  T extends { entry: { trainsOnPrompts: boolean } | null },
+>(candidates: T[]): T[] {
+  return candidates.filter(
+    (candidate) => candidate.entry === null || !candidate.entry.trainsOnPrompts
+  );
+}
 
 /*
  * Whether this entry's non-key configuration is complete.

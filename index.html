@@ -9,11 +9,14 @@
       content="Learn how AI actually works, then build and deploy something real with it."
     />
     <meta name="theme-color" content="#863bff" />
-    <link rel="canonical" href="https://buildgentic.com/" />
+    <!-- www, not the apex: the apex 308-redirects every path to
+         www, so a canonical naming it points crawlers at a redirect
+         rather than the page. See docs/deployment.md. -->
+    <link rel="canonical" href="https://www.buildgentic.com/" />
 
     <!-- Open Graph. Same description as above rather than a second
-         one to keep in step; og:image is left out until there is a
-         real card to point at, since a 404 renders worse than none. -->
+         one to keep in step. og:image must be absolute — crawlers do
+         not resolve relative URLs. Its source is scripts/og-card.html. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="BuildGentic" />
     <meta property="og:title" content="BuildGentic" />
@@ -21,14 +24,22 @@
       property="og:description"
       content="Learn how AI actually works, then build and deploy something real with it."
     />
-    <meta property="og:url" content="https://buildgentic.com/" />
+    <meta property="og:url" content="https://www.buildgentic.com/" />
+    <meta property="og:image" content="https://www.buildgentic.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="BuildGentic — Learn AI by building something real with it."
+    />
 
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="BuildGentic" />
     <meta
       name="twitter:description"
       content="Learn how AI actually works, then build and deploy something real with it."
     />
+    <meta name="twitter:image" content="https://www.buildgentic.com/og.png" />
 
     <title>BuildGentic</title>
   </head>

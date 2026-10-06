@@ -622,6 +622,9 @@ export interface ChainEntryLimits {
   requestsPerMinute: number;
   tokensPerMinute: number;
   vision: boolean;
+  /* See ChainEntry.trainsOnPrompts — read by resolvePowerSource
+     to keep under-13 accounts off providers that train. */
+  trainsOnPrompts: boolean;
 }
 
 export interface ResolvedPowerSource {

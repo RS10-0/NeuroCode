@@ -30,6 +30,8 @@ import DesignControls from "../features/sites/editor/DesignControls";
 import { useSiteDraft } from "../features/sites/editor/useSiteDraft";
 import SiteRenderer from "../features/sites/render/SiteRenderer";
 import type { PublicSite } from "../features/sites/publicApi";
+import { useAgeStatus } from "../features/account/ageState";
+import UnderThirteenNotice from "../features/account/UnderThirteenNotice";
 
 /*
  * Giving an agent a public page.
@@ -57,6 +59,7 @@ type Width = "desktop" | "mobile";
 export default function AgentSite() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { notify } = useToast();
+  const ageStatus = useAgeStatus();
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
@@ -141,6 +144,10 @@ export default function AgentSite() {
       chatLive: false,
     };
   }, [draft.config, draft.slug, agent]);
+
+  if (ageStatus === "restricted") {
+    return <UnderThirteenNotice what="publish pages" backTo={`/agents/${agentId}`} />;
+  }
 
   if (agentError) {
     return (

@@ -348,6 +348,68 @@ export function AuthProvider({
   };
 
   // -----------------------------------------
+  // PASSWORD RESET
+  // -----------------------------------------
+
+  /*
+   * Supabase answers the same way for an address it has never
+   * seen as for one it has, so this cannot be used to find out
+   * who has an account — and the page that calls it says "if an
+   * account exists" for the same reason. The errors that do come
+   * back are real ones: a rate limit, a malformed address, the
+   * network.
+   *
+   * The link returns to whichever origin asked for it, so a
+   * reset requested from localhost lands on localhost. Supabase
+   * only honours origins on its Redirect URLs allowlist and
+   * falls back to the Site URL otherwise — docs/deployment.md
+   * lists the entries.
+   */
+  const requestPasswordReset = async (
+    email: string
+  ): Promise<void> => {
+    const cleanEmail =
+      email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      throw new Error(
+        "Email is required."
+      );
+    }
+
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(
+        cleanEmail,
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  };
+
+  const updatePassword = async (
+    password: string
+  ): Promise<void> => {
+    if (password.length < 8) {
+      throw new Error(
+        "Password must be at least 8 characters."
+      );
+    }
+
+    const { error } =
+      await supabase.auth.updateUser({
+        password,
+      });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  };
+
+  // -----------------------------------------
   // PROVIDER
   // -----------------------------------------
 
@@ -359,6 +421,8 @@ export function AuthProvider({
         login,
         register,
         logout,
+        requestPasswordReset,
+        updatePassword,
       }}
     >
       {children}

@@ -76,7 +76,17 @@ function readString(name: string): string | undefined {
    offlineForced() in providerChain.ts.
 ========================================================= */
 
-export const geminiApiKey = readString("NEUROLINK_GEMINI_API_KEY");
+/*
+ * NEUROLINK_GEMINI_API_KEY used to supply the platform embedding
+ * model. Embeddings moved to Cloudflare (embeddingModels.ts says
+ * why), and nothing reads the key now — so rather than leave it
+ * looking live, the server says once that it can be deleted.
+ */
+if (readString("NEUROLINK_GEMINI_API_KEY")) {
+  console.warn(
+    "[ai] NEUROLINK_GEMINI_API_KEY is set but no longer used — embeddings run on Cloudflare now. Safe to delete."
+  );
+}
 
 /*
  * OpenRouter attribution. Optional, and neither is a secret —
@@ -354,14 +364,19 @@ export const retrieval = {
    * library, and an agent asked about the weather starts
    * quoting a chemistry note at it.
    *
-   * 60 is measured rather than chosen. Across a corpus of four
-   * unrelated subjects, gemini-embedding-001 at 768 dimensions
-   * scores a question against its own subject at 0.695-0.791,
-   * and scores a question about something else entirely — a
-   * rhyme, a recipe, a CSS problem, a greeting — at 0.480-0.549
-   * against its BEST match. Two clearly separated populations
-   * with a gap of about 0.15 between them, and this sits in the
-   * middle of that gap.
+   * 62 is measured rather than chosen, by
+   * scripts/measure-embedding-threshold.mts against the current
+   * model, @cf/baai/bge-base-en-v1.5. Across four unrelated
+   * subjects it scores a question against its own subject at
+   * 0.680-0.815, and a question about something else entirely —
+   * a rhyme, a recipe, a CSS problem, a greeting — at
+   * 0.427-0.558 against its BEST match. A gap of about 0.12, and
+   * 62 is the middle of it.
+   *
+   * (It was 60 under gemini-embedding-001, which measured
+   * 0.695-0.791 against 0.480-0.549. 60 would still separate
+   * bge's two populations, but only 0.04 above the worst
+   * irrelevant score — the edge, not the middle.)
    *
    * The middle rather than the edge, and that was learned the
    * hard way: 0.55 looked safe against the measurements and
@@ -384,7 +399,7 @@ export const retrieval = {
    * A whole number of percent, because an env var holding 0.60
    * is one slipped decimal point away from disabling the floor.
    */
-  minSimilarityPercent: readInt("NEUROLINK_RETRIEVAL_MIN_SIMILARITY", 60),
+  minSimilarityPercent: readInt("NEUROLINK_RETRIEVAL_MIN_SIMILARITY", 62),
 
   /*
    * A second floor, relative to the best match this question

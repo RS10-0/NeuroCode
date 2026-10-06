@@ -138,6 +138,19 @@ export const SCHEMA_PROBES: SchemaProbe[] = [
     table: "agent_schedules",
     column: "expires_at",
   },
+  {
+    /*
+     * Without this column the age gate fails open — by design,
+     * so nobody is locked out — which makes a missing 0024 look
+     * exactly like a working site with no age question. This
+     * probe is how somebody finds out.
+     */
+    id: "0024",
+    name: "age_gate",
+    table: "user_account_scope",
+    column: "age_band",
+  },
+  { id: "0024", name: "age_gate (consents)", table: "parental_consents", column: "consent_token_hash" },
 ];
 
 /*
@@ -169,4 +182,4 @@ export const UNPROBEABLE: Array<{ id: string; name: string; why: string }> = [
 /* The newest migration this build expects. Bump it with each
    new file, so "up through the current one" is a fact in the
    code rather than something to remember. */
-export const LATEST_MIGRATION = "0023";
+export const LATEST_MIGRATION = "0024";

@@ -67,6 +67,7 @@ import {
   checkSlug,
 } from "../../../src/features/sites/slug";
 import { AiRuntimeError, statusFor, toErrorBody } from "../ai/errors";
+import { accountMayPublish } from "../account/AgeGate";
 
 export const agentsRouter = Router();
 
@@ -176,6 +177,30 @@ async function requireAgent(res: Response, userId: string, agentId: string) {
   }
 
   return agent;
+}
+
+/*
+ * Refuses an account that may not put something in front of
+ * strangers — under 13, or not yet answered. Writes the 403 and
+ * returns true when it refused, so callers just bail out.
+ *
+ * On the routes that CREATE a public surface: a deployment, a
+ * key, a page, or switching a page back on. Taking a page down
+ * or deleting one stays open to everybody, so an account that
+ * turns out to be under 13 can still remove what it made before
+ * the age question existed. account/rules.ts mayPublish has the
+ * reasoning for failing closed.
+ */
+async function refusePublic(res: Response, userId: string): Promise<boolean> {
+  if (await accountMayPublish(userId)) {
+    return false;
+  }
+
+  res.status(403).json({
+    error: "Accounts for under-13s can't share agents publicly.",
+    code: "age_restricted",
+  });
+  return true;
 }
 
 /*
@@ -643,7 +668,7 @@ agentsRouter.get("/:agentId/deployment", async (req, res) => {
 agentsRouter.post("/:agentId/deployment", async (req, res) => {
   const user = await requireUser(req, res);
 
-  if (!user) {
+  if (!user || (await refusePublic(res, user.id))) {
     return;
   }
 
@@ -696,7 +721,7 @@ agentsRouter.post("/:agentId/deployment", async (req, res) => {
 agentsRouter.post("/:agentId/deployment/key", async (req, res) => {
   const user = await requireUser(req, res);
 
-  if (!user) {
+  if (!user || (await refusePublic(res, user.id))) {
     return;
   }
 
@@ -952,7 +977,7 @@ agentsRouter.get("/:agentId/site/slug", async (req, res) => {
 agentsRouter.post("/:agentId/site", async (req, res) => {
   const user = await requireUser(req, res);
 
-  if (!user) {
+  if (!user || (await refusePublic(res, user.id))) {
     return;
   }
 
@@ -1098,6 +1123,13 @@ agentsRouter.patch("/:agentId/site", async (req, res) => {
       config?: unknown;
       published?: unknown;
     };
+
+    /* Switching a page ON is creating a public surface; switching
+       it off, or editing one, is not — and resolveSite already
+       hides an under-13 owner's page whatever this row says. */
+    if (body.published === true && (await refusePublic(res, user.id))) {
+      return;
+    }
 
     const updated = await updateSite({
       userId: user.id,

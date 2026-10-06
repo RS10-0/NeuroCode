@@ -56,7 +56,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
      same reason it was: the app still answers there. */
   "agents", "build", "courses", "dashboard", "dev", "lab", "learn",
   "lessons", "login", "onboarding", "profile", "projects", "published",
-  "register", "schedules",
+  "register", "schedules", "forgot-password", "reset-password",
+  "parent-consent", "consent",
 
   /* Infrastructure and conventional paths. */
   "api", "app", "assets", "auth", "cdn", "static", "public", "media",

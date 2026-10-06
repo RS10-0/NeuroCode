@@ -19,6 +19,14 @@ export interface AuthContextType {
   ) => Promise<void>;
 
   logout: () => Promise<void>;
+
+  /* Emails a reset link. Resolves whether or not the address
+     has an account — see AuthContext for why. */
+  requestPasswordReset: (email: string) => Promise<void>;
+
+  /* Sets a new password on the signed-in account, which after a
+     reset link is the session that link created. */
+  updatePassword: (password: string) => Promise<void>;
 }
 
 /*

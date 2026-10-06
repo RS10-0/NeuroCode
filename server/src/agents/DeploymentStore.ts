@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { supabase } from "../lib/supabase";
 import { hashToken, sameSecret } from "../ai/crypto";
 import { AiRuntimeError } from "../ai/errors";
+import { ownerMustWithdraw } from "../account/AgeGate";
 import { getAgentById, type AgentRecord } from "./AgentStore";
 import { mintDeploymentToken, tokenFromHeader } from "./tokens";
 
@@ -583,6 +584,21 @@ export async function authenticateDeployment(
       "deployment_not_found",
       "No deployed agent answers at that address.",
       { internalDetail: `agent ${agent.id} is a draft; deployment paused` }
+    );
+  }
+
+  /*
+   * An owner recorded as under 13. Creating a deployment is
+   * refused for those accounts, but a key issued before the age
+   * question existed still works until something here says no.
+   * The same 404 and for the same reason as above: from outside,
+   * why an endpoint is not serving is the owner's business.
+   */
+  if (await ownerMustWithdraw(deploymentRow.user_id)) {
+    throw new AiRuntimeError(
+      "deployment_not_found",
+      "No deployed agent answers at that address.",
+      { internalDetail: `owner ${deploymentRow.user_id} is under 13; deployment withdrawn` }
     );
   }
 

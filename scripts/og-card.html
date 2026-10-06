@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  Source for public/og.png, the 1200x630 card a shared link shows.
+  Rendered with headless Edge (or Chrome) from this directory, so
+  the relative font paths resolve into node_modules:
+
+    msedge --headless=new --hide-scrollbars --force-device-scale-factor=1
+      --allow-file-access-from-files --window-size=1200,630
+      --virtual-time-budget=3000 --screenshot=og.png og-card.html
+
+  Then copy og.png over public/og.png. Colours are tokens.css's
+  paper surface; fonts are the three the app ships.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Fraunces"; src: url("../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2") format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "Inter"; src: url("../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "JBM"; src: url("../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background: #fbf9f5; color: #1c1a17; font-family: "Inter", sans-serif;
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 56px;
+    padding: 72px 80px; position: relative;
+  }
+  body::after { content: ""; position: absolute; inset: 28px; border: 1px solid #ebe6dd; border-radius: 18px; pointer-events: none; }
+  .left { display: flex; flex-direction: column; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 26px; letter-spacing: -0.01em; }
+  .mark { width: 44px; height: 44px; border-radius: 11px; background: #38553f; display: grid; place-items: center; }
+  .kicker { font-family: "JBM", monospace; font-size: 17px; letter-spacing: 0.06em; text-transform: uppercase; color: #38553f; margin-bottom: 22px; }
+  h1 { font-family: "Fraunces", serif; font-weight: 560; font-size: 60px; line-height: 1.06; text-wrap: balance; letter-spacing: -0.025em; }
+  .loop { font-family: "JBM", monospace; font-size: 18px; color: #666057; display: flex; gap: 12px; flex-wrap: wrap; }
+  .loop b { color: #38553f; font-weight: 600; }
+  .right { display: flex; align-items: center; }
+  .card { width: 100%; background: #fffdf9; border: 1px solid #ddd6c9; border-radius: 16px; box-shadow: 0 18px 40px -18px rgba(28,26,23,.25); overflow: hidden; }
+  .bar { background: #f5f1e8; border-bottom: 1px solid #ebe6dd; padding: 14px 18px; font-family: "JBM", monospace; font-size: 15px; color: #666057; display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ddd6c9; }
+  .msgs { padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; font-size: 18px; line-height: 1.4; }
+  .me { align-self: flex-end; background: #38553f; color: #fff; padding: 11px 15px; border-radius: 14px 14px 4px 14px; max-width: 85%; }
+  .bot { align-self: flex-start; background: #f0ebe0; padding: 11px 15px; border-radius: 14px 14px 14px 4px; max-width: 92%; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">
+      <span class="mark">
+        <svg width="24" height="23" viewBox="0 0 48 46"><path fill="#fff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.830L25.947 44.94z"/></svg>
+      </span>
+      BuildGentic
+    </div>
+    <div>
+      <div class="kicker">For people starting from zero</div>
+      <h1>Learn AI by building something real with it.</h1>
+    </div>
+    <div class="loop"><b>learn</b>→<span>build</span>→<span>test</span>→<b>deploy</b>→<span>share</span></div>
+  </div>
+  <div class="right">
+    <div class="card">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp;buildgentic.com/studybuddy</div>
+      <div class="msgs">
+        <div class="me">How do I factor x² − 5x + 6?</div>
+        <div class="bot">Find two numbers that multiply to 6 and add to −5: −2 and −3. So it's <span style="white-space:nowrap">(x − 2)(x − 3)</span>.</div>
+        <div class="me">Oh, that makes sense now</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

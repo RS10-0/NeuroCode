@@ -24,6 +24,7 @@ import { email as emailConfig, emailEnabled, publicSiteBaseUrl } from "../ai/con
 import { AiRuntimeError, statusFor, toErrorBody } from "../ai/errors";
 import { canSeal } from "../ai/crypto";
 import { requireUser } from "../lib/auth";
+import { accountMayPublish } from "../account/AgeGate";
 
 /*
  * The owner's side of email: connecting a mailbox, seeing what
@@ -97,10 +98,17 @@ emailRouter.get("/email/status", async (req, res) => {
      */
     const configured = emailEnabled() && canSeal();
 
+    /* Under-13 accounts cannot connect a mailbox (account/rules.ts).
+       Said here so the screen can explain it instead of offering
+       a Connect button that refuses. */
+    const allowed = await accountMayPublish(user.id);
+
     res.json({
       configured,
+      allowed,
+      ...(allowed ? {} : { reason: "age" }),
       provider: DEFAULT_EMAIL_PROVIDER,
-      accounts: configured ? await listAccounts(user.id) : [],
+      accounts: configured && allowed ? await listAccounts(user.id) : [],
     });
   } catch (error) {
     sendError(res, error);
@@ -124,6 +132,14 @@ emailRouter.post("/email/connect", async (req, res) => {
   const user = await requireUser(req, res);
 
   if (!user) {
+    return;
+  }
+
+  if (!(await accountMayPublish(user.id))) {
+    res.status(403).json({
+      error: "Accounts for under-13s can't connect an email account.",
+      code: "age_restricted",
+    });
     return;
   }
 

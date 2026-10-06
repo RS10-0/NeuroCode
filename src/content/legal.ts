@@ -60,7 +60,7 @@ const PRIVACY_BODY = `
 ## What we don't do
 
 * We do not sell your personal information.
-* We do not use your private conversations, documents, or emails to train AI models.
+* We do not use your private conversations, documents, or emails to train AI models. (Some of the AI providers we use may, on their free services — see the list below. Accounts for under-13s only ever use providers that do not.)
 * We do not share your data with advertisers.
 * We do not read or store your Gmail data beyond what's needed to perform the specific action you asked an agent to take.
 
@@ -70,13 +70,26 @@ BuildGentic is built on top of a small number of infrastructure providers who pr
 
 * **Supabase** — database and authentication
 * **Vercel and Render** — application hosting
-* **AI model providers** (e.g., Google Gemini) — used to generate agent responses
+* **AI model providers** — Groq, Cloudflare Workers AI, OpenRouter (which may route to NVIDIA), and Mistral — used to generate agent responses. Cloudflare also turns uploaded knowledge into the search index agents use. Groq and Cloudflare do not use what they are sent to train AI models. The free services we use from OpenRouter/NVIDIA and Mistral may use requests to improve their own models; requests from accounts for under-13s are never sent to them.
+* **Web search providers** (e.g., Tavily) — receive the search queries an agent makes when web search is turned on
 * **Resend** — transactional email delivery
 * **Google (Gmail API)** — only for accounts that explicitly connect Gmail through Email Agent
 
 ## Children's privacy
 
-BuildGentic is used in educational settings that may include students under 13. For accounts identified as belonging to a user under 13, certain features (including the browser extension's page-reading capability, and Email Agent) are restricted or unavailable by default, consistent with the Children's Online Privacy Protection Act (COPPA). Where BuildGentic is used through a school or program, that organization may provide consent on behalf of parents for use strictly within the educational program, as permitted under COPPA guidance for schools.
+BuildGentic can be used by children under 13 with a parent or guardian's permission, as the Children's Online Privacy Protection Act (COPPA) requires.
+
+**How we know someone is under 13.** When an account is created, we ask for the month and year of birth. We use them only to work out an age range (under 13, 13–17, or 18 and over), store only that range, and never store the birth month or year.
+
+**Asking a parent first.** If someone tells us they are under 13, we ask for a parent or guardian's email address and send that parent an email explaining what we collect and why. Until the parent agrees, the account cannot be used: we hold only the child's display name, email address and password, and the parent's email address, for the sole purpose of asking. If the parent declines, or does not answer within 7 days, we delete the account and the parent's email address.
+
+**Which AI services see a child's requests.** What a child types to their agents, and any knowledge they upload, is sent only to AI providers that do not use it to train models (currently Groq and Cloudflare), and only to produce the agent's answer.
+
+**What under-13 accounts cannot do.** So that nothing a child makes is shared outside BuildGentic, accounts for under-13s cannot publish public agent pages, create keys that let other apps use their agents, connect an email account (Email Agent), or let the browser extension read web pages.
+
+**A parent's choices.** After agreeing, the parent receives a confirmation email with a link that withdraws consent at any time. Withdrawing deletes the child's account and everything in it. Parents can also contact us at [buildgentic@gmail.com](mailto:buildgentic@gmail.com) to review or delete their child's information.
+
+We do not use children's information for advertising, sell it, or share it with advertisers.
 
 ## Your choices
 
@@ -98,7 +111,7 @@ Questions about this policy or your data can be sent to [buildgentic@gmail.com](
 export const PRIVACY_POLICY: LegalDocument = {
   path: "/privacy",
   title: "Privacy Policy",
-  updated: "10 September 2026",
+  updated: "5 October 2026",
   lede: "This policy explains what information BuildGentic collects, why, and how it's handled. It covers the BuildGentic website, the BuildGentic browser extension, and any AI agents you build or use through BuildGentic.",
   body: PRIVACY_BODY,
 };
@@ -156,6 +169,8 @@ BuildGentic is provided without warranties of any kind. To the extent permitted 
 
 ## Children and educational use
 
+If you are under 13, you need a parent or guardian's permission to use BuildGentic. We will email them to ask, and your account works only once they agree. Some features are not available on accounts for under-13s — see our Privacy Policy for the list. A parent or guardian can withdraw their permission at any time, which deletes the account.
+
 If you're using BuildGentic through a school or educational program, that organization's own agreement with BuildGentic (if any) governs data handling for that program's students in addition to these terms.
 
 ## Changes to these terms
@@ -170,7 +185,7 @@ Questions about these terms can be sent to [buildgentic@gmail.com](mailto:buildg
 export const TERMS_OF_SERVICE: LegalDocument = {
   path: "/terms",
   title: "Terms of Service",
-  updated: "14 September 2026",
+  updated: "5 October 2026",
   lede: "Welcome to BuildGentic. By creating an account or using BuildGentic, you agree to these terms.",
   body: TERMS_BODY,
 };

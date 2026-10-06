@@ -121,13 +121,26 @@ export default function Login() {
             )}
           </Field>
 
+          {/* After the field rather than in its hint slot, which
+              renders above the input — there it sat between Email
+              and Password in the tab order. The typed email rides
+              along so the learner does not type it twice. */}
+          <p className="auth__forgot">
+            <Link to="/forgot-password" state={{ email }}>
+              Forgot your password?
+            </Link>
+          </p>
+
           <Button type="submit" variant="primary" size="lg" block disabled={isBusy}>
             {isBusy ? "Signing in…" : "Sign in"}
           </Button>
         </form>
 
         <p className="auth__footer">
-          New here? <Link to="/register">Create an account</Link>
+          New here?{" "}
+          <Link to="/register" state={location.state}>
+            Create an account
+          </Link>
         </p>
       </div>
     </div>

@@ -42,6 +42,11 @@ export interface EmailStatus {
      screen says so instead of offering a button that leads to a
      Google error page. */
   configured: boolean;
+  /* False for an account that may not connect a mailbox —
+     under 13 (server/src/account/rules.ts). Optional so a
+     response from an older server reads as allowed. */
+  allowed?: boolean;
+  reason?: "age";
   provider: string;
   accounts: EmailAccountSummary[];
 }

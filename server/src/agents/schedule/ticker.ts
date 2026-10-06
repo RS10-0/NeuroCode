@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabase";
 import { drainOutbox, notifyRunFinished, reconcileDisables } from "./notify";
 import { runScheduled } from "./runner";
 import { claimDue, sweep } from "./ScheduleStore";
+import { sweepExpiredConsents } from "../../account/consent";
 
 /*
  * The thing that makes a schedule happen.
@@ -66,6 +67,9 @@ export interface TickResult {
   emailsSent: number;
   reconciled: number;
   swept: number;
+  /* Under-13 accounts deleted because no parent answered in
+     time — account/consent.ts sweepExpiredConsents. */
+  consentsExpired: number;
 }
 
 const EMPTY: TickResult = {
@@ -76,6 +80,7 @@ const EMPTY: TickResult = {
   emailsSent: 0,
   reconciled: 0,
   swept: 0,
+  consentsExpired: 0,
 };
 
 /*
@@ -116,6 +121,18 @@ export async function tickOnce(): Promise<TickResult> {
       result.reconciled = await reconcileDisables();
     } catch (error) {
       console.error(`[schedule] disable reconciliation failed: ${describe(error)}`);
+    }
+
+    /*
+     * Not a schedule's business, but this is the one timer the
+     * server has — and on the free instance, the only thing that
+     * wakes it. The notice told the parent seven days; this is
+     * what keeps that promise.
+     */
+    try {
+      result.consentsExpired = await sweepExpiredConsents();
+    } catch (error) {
+      console.error(`[age] consent sweep failed: ${describe(error)}`);
     }
 
     /* ---- 2. the runs ---- */

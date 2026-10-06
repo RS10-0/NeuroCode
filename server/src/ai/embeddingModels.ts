@@ -17,11 +17,11 @@ import type {
  * Every entry is 768 dimensions, and that is a constraint rather
  * than a coincidence. The column that stores these is a fixed
  * width, so a catalogue with two widths in it would need two
- * columns or two tables. Both models here can be asked for an
- * arbitrary width — Gemini through `outputDimensionality`,
- * OpenAI through `dimensions` — so 768 is a choice, taken
- * because it is a quarter of the storage of 3072 and loses
- * almost nothing on the scale of text a learner attaches.
+ * columns or two tables. 768 was chosen when the platform model
+ * was Gemini, which can be asked for any width — a quarter of
+ * the storage of 3072, losing almost nothing on the scale of
+ * text a learner attaches. Its replacement was picked partly
+ * BECAUSE it is natively 768, so the column never moved.
  *
  * What does NOT follow from a shared width is comparability.
  * Two models produce 768 numbers that mean entirely different
@@ -35,30 +35,48 @@ const DIMENSIONS = 768;
 
 const EMBEDDING_MODELS: EmbeddingModelDescriptor[] = [
   /* -------------------------------------------------------
-     GEMINI — the platform embedding model.
+     CLOUDFLARE — the platform embedding model.
 
-     Same reasoning as the completion catalogue: BuildGentic pays
-     this bill for every learner, and Google's free tier bills
-     nothing at all while the project has no billing account
-     attached.
+     It replaced gemini-embedding-001, and not for quality. The
+     Gemini API's terms forbid using it in a service "directed
+     towards or likely to be accessed by individuals under the
+     age of 18", which BuildGentic is; and on the unpaid tier
+     Google uses what it is sent to improve its products, with
+     human review. A learner's uploaded notes are exactly what
+     neither of those should touch.
+
+     Cloudflare does not train on, or improve services with,
+     what Workers AI is sent, and bge-base is natively 768
+     dimensions — the width the chunk column already is — so the
+     swap needed no migration. It does need every existing chunk
+     re-embedded: vectors from two models cannot be compared,
+     and the model key below makes the old chunks unsearchable
+     rather than wrong. scripts/reindex-knowledge.mts does that
+     once, after deploy.
+
+     Billed in neurons against the same 10,000-a-day free
+     allowance as Cloudflare's chat slot, at roughly 6,000
+     neurons per million tokens — a 30-page document is a couple
+     of hundred.
      ------------------------------------------------------- */
   {
-    id: "gemini-embedding-001",
-    provider: "gemini",
-    displayName: "Gemini Embedding 001",
+    id: "@cf/baai/bge-base-en-v1.5",
+    provider: "cloudflare",
+    displayName: "BGE Base EN v1.5",
     dimensions: DIMENSIONS,
     /*
-     * Comfortably past the chunker's target, so a chunk is
-     * never the thing that hits this. It exists to stop a
-     * pathological entry — one 40 KB line with no whitespace —
-     * from becoming a provider error.
+     * The model reads at most 512 tokens and drops the rest, so
+     * this is set where the chunker's hard limit keeps every
+     * chunk whole: about 1,800 characters is ~450 tokens of
+     * English. The chunker's own target (~900 characters, see
+     * NEUROLINK_KNOWLEDGE_CHUNK_CHARS) sits well inside it; this
+     * is the ceiling for the pathological entry — one long line
+     * with no whitespace — not the size of a normal chunk.
      */
-    maxInputChars: 8_000,
-    /*
-     * Google allows up to 100 texts per batch but caps the batch
-     * at 20k tokens, which 100 chunks of this size would exceed.
-     * 32 keeps every batch inside both limits with room to spare.
-     */
+    maxInputChars: 1_800,
+    /* Well inside what the endpoint accepts in one call, and the
+       same batch size the Gemini entry used, so indexing makes the
+       same number of requests as before. */
     maxBatch: 32,
     availableTo: ["platform", "byok"],
   },

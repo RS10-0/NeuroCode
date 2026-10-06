@@ -1,0 +1,18 @@
+# BuildGentic — https://www.buildgentic.com
+#
+# Everything behind sign-in redirects to /login, so it is not
+# listed here: crawlers only ever see the login page there.
+# Published agent pages live at /<slug> and are meant to be
+# found, so the root stays open.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dev/
+Disallow: /extension/
+Disallow: /onboarding
+Disallow: /learn/
+Disallow: /reset-password
+Disallow: /parent-consent
+
+Sitemap: https://www.buildgentic.com/sitemap.xml

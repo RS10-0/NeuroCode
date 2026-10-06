@@ -15,7 +15,8 @@ import BrandMark from "../components/BrandMark";
 import SiteFooter from "../components/SiteFooter";
 import { useSurface } from "../components/Surface";
 import { Badge, Button, Card } from "../components/ui";
-import { COURSE_CATALOG } from "../features/courses/catalog";
+import { useAuth } from "../auth/useAuth";
+import { COURSE_SUMMARY } from "../features/courses/summary";
 
 /* The product loop, stated plainly rather than described. */
 const LOOP = [
@@ -69,6 +70,8 @@ const BUILDER_NAV = ["Identity", "Model", "Knowledge", "Actions"];
 
 export default function Landing() {
   useSurface("learn");
+
+  const { user } = useAuth();
 
   /*
    * Honour a fragment in the URL that arrived with the document.
@@ -229,10 +232,21 @@ export default function Landing() {
         </p>
 
         <div className="curriculum-grid">
-          {COURSE_CATALOG.map((course) => (
+          {/* A course page sits behind sign-in, so a visitor with
+              no account is sent to sign-up rather than bounced to
+              a login form they cannot use. The course rides along
+              in state: if they do have an account after all,
+              Register hands it to Login, which opens the course
+              once they are in. */}
+          {COURSE_SUMMARY.map((course) => (
             <Link
-              key={course.courseId ?? course.title}
-              to={`/courses/${course.courseId}`}
+              key={course.courseId}
+              to={user ? `/courses/${course.courseId}` : "/register"}
+              state={
+                user
+                  ? undefined
+                  : { from: { pathname: `/courses/${course.courseId}` } }
+              }
               className="curriculum-card"
             >
               <div className="curriculum-card__head">

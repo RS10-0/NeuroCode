@@ -839,7 +839,7 @@ function said(answer: StreamedAnswer, length = 80): string {
 /* The floor the server is actually running, so the assertions
    below cannot drift from the configuration. */
 const MIN_SIMILARITY =
-  Number(serverEnv.NEUROLINK_RETRIEVAL_MIN_SIMILARITY || "60") / 100;
+  Number(serverEnv.NEUROLINK_RETRIEVAL_MIN_SIMILARITY || "62") / 100;
 
 /*
  * The longest suffix of `a`, at least `minLen` long, that also

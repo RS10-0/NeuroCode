@@ -50,6 +50,8 @@ import {
 } from "../features/sites/siteApi";
 import { useAiRuntime } from "../features/lab/useAiRuntime";
 import type { AiRuntimeInfo } from "../lib/aiClient";
+import { useAgeStatus } from "../features/account/ageState";
+import UnderThirteenNotice from "../features/account/UnderThirteenNotice";
 
 /*
  * Deploying an agent.
@@ -196,6 +198,7 @@ export default function AgentDeploy() {
   const { agentId } = useParams<{ agentId: string }>();
   const runtime = useAiRuntime();
   const { notify } = useToast();
+  const ageStatus = useAgeStatus();
 
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
@@ -496,6 +499,10 @@ export default function AgentDeploy() {
      -------------------------------------------------------- */
 
   const loading = (runtime.loading && !info) || current === null;
+
+  if (ageStatus === "restricted") {
+    return <UnderThirteenNotice what="deploy agents" backTo={`/agents/${agentId ?? ""}`} />;
+  }
 
   if (loading) {
     return (

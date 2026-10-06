@@ -1,6 +1,13 @@
-import { geminiApiKey, limitsFor } from "./config";
+import { limitsFor } from "./config";
+import { accountMayUseTrainingProviders } from "../account/AgeGate";
+import { AiRuntimeError } from "./errors";
 import { allModels, PUBLIC_MODEL_ID } from "./models";
-import { configuredChain, keyFor, type ChainEntry } from "./providerChain";
+import {
+  configuredChain,
+  keyFor,
+  withoutTrainingProviders,
+  type ChainEntry,
+} from "./providerChain";
 import { registerProviders } from "./providers";
 import type {
   ChainCandidate,
@@ -88,15 +95,18 @@ export function chainCandidates(): ChainCandidate[] {
 /*
  * The credential map.
  *
- * Holds every key this server has, keyed by provider, because
- * EmbeddingRuntime resolves its model out of exactly this map —
- * an embedding is a model call and goes through the same quota
- * gate as a completion, it just does not go through the cascade.
+ * Holds the key of every provider that may serve this request,
+ * keyed by provider, because EmbeddingRuntime resolves its model
+ * out of exactly this map — an embedding is a model call and
+ * goes through the same quota gate as a completion, it just does
+ * not go through the cascade.
  *
- * Gemini appears here and in no candidate list, which is the
- * shape of the current transition: it can still produce the
- * 768-dimension vectors every indexed chunk was built with, and
- * it can no longer answer a single learner's prompt.
+ * Built from the candidates, so it narrows with them: an account
+ * kept to the non-training providers cannot embed with anything
+ * else either. Gemini used to be added here unconditionally as
+ * the embedding model; it was removed for the reasons given in
+ * embeddingModels.ts, and NEUROLINK_GEMINI_API_KEY now reaches
+ * nothing.
  */
 function credentialMap(
   candidates: ChainCandidate[]
@@ -105,10 +115,6 @@ function credentialMap(
 
   for (const candidate of candidates) {
     credentials.set(candidate.providerId, candidate.credentials);
-  }
-
-  if (geminiApiKey) {
-    credentials.set("gemini", { apiKey: geminiApiKey });
   }
 
   /* No real key anywhere: the mock has to be able to embed too,
@@ -143,13 +149,54 @@ export function resolveChain(userId: string): ResolvedPowerSource {
 }
 
 /*
- * Kept async, and kept under the old name, because
- * EmbeddingRuntime and the deployment path both await it and
- * neither has any reason to care that resolution stopped needing
- * a database round trip when BYOK went away.
+ * The chain this learner may actually use.
+ *
+ * Every real model call in the server resolves through here —
+ * chat, the Lab, agent tests, published pages and deployments
+ * (resolved for the OWNER), schedules, web search, file analysis
+ * and embeddings — so this is the one place the age rule has to
+ * live to cover all of them.
+ *
+ * An account that may not reach a training provider (under 13,
+ * or not yet asked; see account/rules.ts) gets the chain with
+ * every `trainsOnPrompts` entry removed, and the credential map
+ * rebuilt from what is left. The offline mock stays: it trains
+ * nothing and is what a keyless clone runs on.
+ *
+ * Async because the age lookup is; it is cached for a minute in
+ * AgeGate, so this is not a database round trip per request.
  */
 export async function resolvePowerSource(
   userId: string
 ): Promise<ResolvedPowerSource> {
-  return resolveChain(userId);
+  const source = resolveChain(userId);
+
+  if (await accountMayUseTrainingProviders(userId)) {
+    return source;
+  }
+
+  const candidates = withoutTrainingProviders(source.candidates ?? []);
+
+  /*
+   * Every non-training provider unconfigured. Refused rather than
+   * quietly handed the training ones: that would be the exact
+   * leak this function exists to stop. Worded like any other
+   * provider outage, because to the learner that is what it is.
+   */
+  if (candidates.length === 0) {
+    throw new AiRuntimeError(
+      "provider_unavailable",
+      "BuildGentic's AI isn't available right now. Please try again later.",
+      {
+        internalDetail:
+          "no non-training provider is configured (need Groq or Cloudflare) for an account kept off training providers",
+      }
+    );
+  }
+
+  return {
+    ...source,
+    credentials: credentialMap(candidates),
+    candidates,
+  };
 }

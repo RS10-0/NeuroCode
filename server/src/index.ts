@@ -7,8 +7,9 @@ import {
   setCurrentLesson,
 } from "./progress/ProgressStore";
 
-import { getAuthenticatedUser } from "./lib/auth";
+import { requireUser } from "./lib/auth";
 import { progressRouter } from "./routes/progress";
+import { accountRouter } from "./routes/account";
 import { aiRouter } from "./routes/ai";
 
 import { creditsRouter } from "./routes/credits";
@@ -236,6 +237,16 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/progress", progressRouter);
 
 // -----------------------------------------
+// THE AGE QUESTION AND PARENTAL CONSENT
+//
+// The one router signed-in learners can reach while their
+// account waits for a parent (requireUser refuses them
+// everywhere else), plus the parent's own token-only routes.
+// -----------------------------------------
+
+app.use("/api/account", accountRouter);
+
+// -----------------------------------------
 // AI RUNTIME
 //
 // Every model call BuildGentic makes goes through here. Mounted
@@ -360,12 +371,10 @@ app.use("/api/extension", extensionRouter);
 
 app.get("/api/progress", async (req, res) => {
   try {
-    const user = await getAuthenticatedUser(req);
+    const user = await requireUser(req, res);
 
     if (!user) {
-      return res.status(401).json({
-        error: "Authentication required.",
-      });
+      return;
     }
 
     const progress = await getProgress(user.id);
@@ -385,12 +394,10 @@ app.get("/api/progress", async (req, res) => {
 
 app.post("/api/progress/evaluation", async (req, res) => {
   try {
-    const user = await getAuthenticatedUser(req);
+    const user = await requireUser(req, res);
 
     if (!user) {
-      return res.status(401).json({
-        error: "Authentication required.",
-      });
+      return;
     }
 
     const { lessonId, conceptIds, correct } = req.body;
@@ -441,12 +448,10 @@ app.post("/api/progress/evaluation", async (req, res) => {
 
 app.post("/api/progress/current-lesson", async (req, res) => {
   try {
-    const user = await getAuthenticatedUser(req);
+    const user = await requireUser(req, res);
 
     if (!user) {
-      return res.status(401).json({
-        error: "Authentication required.",
-      });
+      return;
     }
 
     const { lessonId } = req.body;

@@ -3,6 +3,8 @@ import { readSseData } from "./sse";
 import type {
   AiProvider,
   CredentialCheck,
+  EmbeddingRequest,
+  EmbeddingResult,
   FinishReason,
   ModelRequest,
   ProviderCredentials,
@@ -85,6 +87,18 @@ export interface OpenAiCompatibleSpec {
    * as a credentials problem.
    */
   validateAuthFailureStatuses?: number[];
+  /*
+   * Where this vendor's OpenAI-compatible /embeddings endpoint
+   * is, for the ones whose embedding models BuildGentic uses.
+   * Absent means the adapter has no `embed` at all — the shape
+   * AiProvider asks for, so "this provider cannot make vectors"
+   * stays a question the catalogue can answer rather than a
+   * method that throws.
+   *
+   * Only Cloudflare sets it today. See embeddingModels.ts for
+   * why the platform embeds there and not with Gemini.
+   */
+  embeddingsUrl?: string;
 }
 
 export function createOpenAiCompatibleProvider(
@@ -145,6 +159,10 @@ export function createOpenAiCompatibleProvider(
         };
       }
     },
+
+    ...(spec.embeddingsUrl
+      ? { embed: embedVia(spec.id, spec.embeddingsUrl, spec.extraHeaders) }
+      : {}),
 
     async *stream(
       request: ModelRequest,
@@ -370,6 +388,114 @@ function mapFinishReason(reason: string): FinishReason {
       /* "stop", "end_turn", "tool_calls" and anything new. */
       return "stop";
   }
+}
+
+/* =========================================================
+   EMBEDDINGS
+
+   The OpenAI /embeddings shape: `{model, input: [...]}` in,
+   `{data: [{index, embedding}], usage: {prompt_tokens}}` out.
+
+   Sorted by `index` rather than trusted positionally. OpenAI
+   documents the field precisely so a server may answer out of
+   order, and a vector attached to its neighbour's chunk is the
+   one failure here nothing downstream could ever notice — the
+   search would simply be quietly wrong. EmbeddingRuntime checks
+   the count; the order is checked here, where the index is.
+
+   No `dimensions` field is sent. The models used through this
+   path have a fixed width, and some vendors reject the field
+   outright for a model that cannot vary it. The width is still
+   checked — against the request — so a model that turns out not
+   to be the size the catalogue says fails loudly instead of
+   writing vectors the column cannot hold.
+========================================================= */
+
+function embedVia(
+  providerId: ProviderId,
+  url: string,
+  extraHeaders: Record<string, string> | undefined
+) {
+  return async function embed(
+    request: EmbeddingRequest,
+    credentials: ProviderCredentials,
+    signal: AbortSignal
+  ): Promise<EmbeddingResult> {
+    if (!credentials.apiKey) {
+      throw new AiRuntimeError(
+        "provider_not_configured",
+        "AI is not configured on this BuildGentic server yet."
+      );
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        signal,
+        headers: {
+          Authorization: `Bearer ${credentials.apiKey}`,
+          "Content-Type": "application/json",
+          ...extraHeaders,
+        },
+        body: JSON.stringify({ model: request.model, input: request.texts }),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+
+      throw new AiRuntimeError(
+        "provider_unavailable",
+        "Could not reach the AI service. Please try again in a moment.",
+        { internalDetail: error instanceof Error ? error.message : String(error) }
+      );
+    }
+
+    if (!response.ok) {
+      throw await describeHttpFailure(response, providerId);
+    }
+
+    let parsed: {
+      data?: Array<{ index?: number; embedding?: number[] }>;
+      usage?: { prompt_tokens?: number };
+    };
+
+    try {
+      parsed = (await response.json()) as typeof parsed;
+    } catch {
+      throw new AiRuntimeError(
+        "provider_malformed_response",
+        "The AI service sent a response BuildGentic could not read.",
+        { internalDetail: `[${providerId}] embeddings body was not JSON.` }
+      );
+    }
+
+    const rows = [...(parsed.data ?? [])].sort(
+      (a, b) => (a.index ?? 0) - (b.index ?? 0)
+    );
+    const vectors = rows.map((row) => row.embedding ?? []);
+
+    const wrongWidth = vectors.find((vector) => vector.length !== request.dimensions);
+
+    if (wrongWidth) {
+      throw new AiRuntimeError(
+        "provider_malformed_response",
+        "The AI service sent a response BuildGentic could not read.",
+        {
+          internalDetail: `[${providerId}] ${request.model} returned ${wrongWidth.length}-dim vectors; the catalogue says ${request.dimensions}.`,
+        }
+      );
+    }
+
+    const promptTokens = parsed.usage?.prompt_tokens;
+
+    return {
+      vectors,
+      ...(typeof promptTokens === "number" ? { inputTokens: promptTokens } : {}),
+    };
+  };
 }
 
 /* =========================================================
