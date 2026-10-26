@@ -94,8 +94,6 @@ export default function TokenizerActivity({
 
   const visibleTokens = tokens.filter((token) => !/^\s+$/.test(token));
 
-  const isStarter = (activity.starterSentences ?? []).includes(text);
-
   function check() {
     run.check({
       completed: tokenizedCustom,
@@ -194,7 +192,13 @@ export default function TokenizerActivity({
 
       <ActivityActions
         checked={run.checked}
-        canCheck={tokenizedCustom || !isStarter}
+        /*
+         * Only what the step will accept. Allowing any edited text
+         * through let a short entry show a green result while the
+         * required action was never recorded, so Continue stayed
+         * locked.
+         */
+        canCheck={tokenizedCustom}
         attemptsLeft={run.attemptsLeft}
         outOfAttempts={run.outOfAttempts}
         checkLabel="Done exploring"
@@ -204,7 +208,8 @@ export default function TokenizerActivity({
 
       {!run.checked && !tokenizedCustom ? (
         <p className="slider__hint">
-          Type your own sentence to finish this step.
+          Type a sentence of your own (more than a couple of words) to finish
+          this step.
         </p>
       ) : null}
 

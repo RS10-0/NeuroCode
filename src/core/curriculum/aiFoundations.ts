@@ -942,7 +942,7 @@ const lesson3Step1: ConceptStep = {
         },
         {
           id: "ids",
-          label: "[479, 21451, able]",
+          label: "[479, 21451, 540]",
           caption: "Each piece becomes a number",
         },
         {
@@ -1084,7 +1084,7 @@ const lesson3Step4: VectorSimilarityActivityStep = {
   title: "Vector Similarity Plotter",
   requiresCompletion: true,
   instructions:
-    "Drag the word nodes around the vector map. Place semantically related concepts closer together and unrelated concepts farther apart. Then inspect the similarity score.",
+    "Click two words on the vector map to compare them. Related concepts sit close together and score high; unrelated ones sit far apart. Compare at least three pairs.",
   completion: {
     type: "minimum_correct",
     minimumCorrect: 3,

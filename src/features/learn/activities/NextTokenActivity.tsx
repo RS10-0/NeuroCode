@@ -51,6 +51,16 @@ export default function NextTokenActivity({
 
   const answeredAll = revealed.length === activity.prompts.length;
 
+  /*
+   * The pass mark comes from the lesson's own completion rule.
+   * A hard-coded half here let the learner see a green result
+   * while the lesson, which wanted more, kept Continue locked.
+   */
+  const minimum =
+    activity.completion?.minimumCorrect ??
+    Math.ceil(activity.prompts.length / 2);
+  const passed = correctCount >= minimum;
+
   function submit(tokenId: string) {
     if (isRevealed) {
       return;
@@ -62,7 +72,7 @@ export default function NextTokenActivity({
 
   function check() {
     run.check({
-      completed: correctCount >= Math.ceil(activity.prompts.length / 2),
+      completed: passed,
       score: scoreOf(correctCount, activity.prompts.length),
       correctActions: correctCount,
       totalActions: activity.prompts.length,
@@ -177,12 +187,17 @@ export default function NextTokenActivity({
       {run.checked ? (
         <div style={{ marginTop: "var(--space-4)" }}>
           <Callout
-            tone="correct"
+            tone={passed ? "correct" : "caution"}
             title={`${correctCount} of ${activity.prompts.length} matched the model`}
           >
-            {activity.feedback?.completion ??
-              activity.feedback?.correct ??
-              "This is all generation is: pick the next token, append it, repeat. There is no plan for the sentence and no check that it is true."}
+            {passed
+              ? (activity.feedback?.completion ??
+                activity.feedback?.correct ??
+                "This is all generation is: pick the next token, append it, repeat. There is no plan for the sentence and no check that it is true.")
+              : `You need ${minimum} of ${activity.prompts.length} to continue. ${
+                  activity.feedback?.incorrect ??
+                  "Look for the token with the highest probability, not the one that is true."
+                }`}
           </Callout>
         </div>
       ) : null}
