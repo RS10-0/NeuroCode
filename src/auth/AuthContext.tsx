@@ -281,8 +281,15 @@ export function AuthProvider({
           email: cleanEmail,
           password,
           options: {
+            /*
+             * `username` is what the profiles trigger and the app
+             * read. `display_name` is the key the Supabase
+             * dashboard's Users table shows — without it every
+             * account reads "-" there.
+             */
             data: {
               username: cleanUsername,
+              display_name: cleanUsername,
             },
           },
         });
